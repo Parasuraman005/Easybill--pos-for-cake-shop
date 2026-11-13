@@ -1,0 +1,6 @@
+{
+  "name": "Easy Bill",
+  "description": "Smart Cake Shop Billing & Management Software with POS counter billing, custom cake order tracking, sales & expense analytics, and thermal receipt printing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

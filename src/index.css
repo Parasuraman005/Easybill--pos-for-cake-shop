@@ -1,0 +1,104 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --font-display: 'Outfit', system-ui, sans-serif;
+    --font-sans: 'Inter', system-ui, sans-serif;
+    --eb-bg: #F7F7FB;
+    --eb-surface: #FFFFFF;
+    --eb-primary: #7656C9;
+    --eb-primary-hover: #6947BB;
+    --eb-secondary: #E9E2FF;
+    --eb-text: #302A40;
+    --eb-text-muted: #817A91;
+    --eb-border: #EAE7F0;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-weight: 500;
+    background-color: var(--eb-bg);
+    color: var(--eb-text);
+  }
+
+  h1, h2, h3, h4, .font-display {
+    font-family: var(--font-display);
+  }
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.eb-card {
+  background-color: #FFFFFF;
+  border: 1px solid #EAE7F0;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(48, 42, 64, 0.04);
+}
+
+.dark .eb-card {
+  background-color: #1B1726;
+  border-color: #2E2842;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+}
+
+/* Subtle custom scrollbars for POS grids and horizontal pending order strips */
+.thin-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(118, 86, 201, 0.25);
+  border-radius: 9999px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(118, 86, 201, 0.45);
+}
+
+/* Thermal & A4 Receipt Printing Rules */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  #easybill-print-sheet,
+  #easybill-print-sheet * {
+    visibility: visible !important;
+  }
+
+  #easybill-print-sheet {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    margin: 0 !important;
+    padding: 8px !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  #easybill-print-sheet[data-paper="58mm"] {
+    width: 58mm !important;
+    font-size: 10px !important;
+  }
+
+  #easybill-print-sheet[data-paper="80mm"] {
+    width: 80mm !important;
+    font-size: 11px !important;
+  }
+
+  #easybill-print-sheet[data-paper="A4"] {
+    width: 190mm !important;
+    padding: 16mm !important;
+    font-size: 13px !important;
+  }
+}

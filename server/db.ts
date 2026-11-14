@@ -1,11 +1,45 @@
 import Database from 'better-sqlite3';
 import crypto from 'crypto';
+import fs from 'fs';
+import os from 'os';
 import path from 'path';
 
-const DB_PATH = path.resolve(process.cwd(), 'easybill.db');
+function resolveDatabasePath(): string {
+  if (process.env.DATABASE_PATH) {
+    return path.resolve(process.env.DATABASE_PATH);
+  }
+
+  const isServerless = Boolean(
+    process.env.VERCEL ||
+      process.env.NETLIFY ||
+      process.env.AWS_LAMBDA_FUNCTION_NAME ||
+      process.env.LAMBDA_TASK_ROOT
+  );
+
+  if (isServerless) {
+    const tmpDbPath = path.join(os.tmpdir(), 'easybill.db');
+    const bundledDbPath = path.resolve(process.cwd(), 'easybill.db');
+    if (!fs.existsSync(tmpDbPath) && fs.existsSync(bundledDbPath)) {
+      try {
+        fs.copyFileSync(bundledDbPath, tmpDbPath);
+      } catch {
+        // Ignore copy errors and allow initDatabase() to initialize a fresh DB
+      }
+    }
+    return tmpDbPath;
+  }
+
+  return path.resolve(process.cwd(), 'easybill.db');
+}
+
+const DB_PATH = resolveDatabasePath();
 
 export const db = new Database(DB_PATH);
-db.pragma('journal_mode = WAL');
+try {
+  db.pragma('journal_mode = WAL');
+} catch {
+  // Fallback cleanly if WAL is unsupported on the host filesystem
+}
 db.pragma('foreign_keys = ON');
 
 export function hashPassword(password: string): string {
@@ -140,6 +174,7 @@ export function initDatabase(): void {
       paymentMode TEXT NOT NULL,
       paymentHistory TEXT NOT NULL,
       status TEXT NOT NULL,
+      fulfillmentType TEXT NOT NULL DEFAULT 'Pickup',
       orderDate TEXT NOT NULL,
       deliveryDate TEXT NOT NULL,
       deliveryTime TEXT NOT NULL,
@@ -162,6 +197,18 @@ export function initDatabase(): void {
       createdAt TEXT NOT NULL
     );
   `);
+
+  try {
+    db.exec(`ALTER TABLE orders ADD COLUMN fulfillmentType TEXT NOT NULL DEFAULT 'Pickup'`);
+  } catch {
+    // Column already exists
+  }
+
+  try {
+    db.exec(`UPDATE products SET image = REPLACE(image, '/src/assets/images/', '/images/') WHERE image LIKE '/src/assets/images/%'`);
+  } catch {
+    // Ignore if update is unnecessary
+  }
 
   seedInitialData();
 }
@@ -290,21 +337,21 @@ function seedInitialData(): void {
     `);
 
     const seedProducts = [
-      ['prd-01', 'Belgian Dark Chocolate Truffle', 'Cakes', 950, 'KG', '/src/assets/images/product_truffle_cake_1794586326747.jpg', 1, 1, 'Rich dark Belgian ganache layered sponge cake'],
-      ['prd-02', 'Classic Red Velvet Celebration', 'Cakes', 1100, 'KG', '/src/assets/images/product_red_velvet_1794586327823.jpg', 1, 1, 'Crimson cocoa sponge with whipped cream cheese frosting'],
-      ['prd-03', 'Fresh Strawberry Chantilly', 'Cakes', 980, 'KG', '/src/assets/images/product_fruit_pastry_1794586327935.jpg', 1, 1, 'Vanilla sponge layered with fresh strawberries and cream'],
-      ['prd-04', 'Dutch Truffle Pastry Slice', 'Pastries', 140, 'Piece', '/src/assets/images/product_truffle_cake_1794586326747.jpg', 1, 1, 'Single-serve decadent dark chocolate ganache slice'],
-      ['prd-05', 'Strawberry Mille-Feuille Pastry', 'Pastries', 165, 'Piece', '/src/assets/images/product_fruit_pastry_1794586327935.jpg', 0, 1, 'Crisp puff pastry with vanilla bean cream & berries'],
-      ['prd-06', 'Red Velvet Cream Slice', 'Pastries', 150, 'Piece', '/src/assets/images/product_red_velvet_1794586327823.jpg', 0, 1, 'Velvety single portion pastry with cream cheese swirl'],
-      ['prd-07', 'Madagascar Vanilla Cupcake', 'Cupcakes', 85, 'Piece', '/src/assets/images/product_gourmet_cupcakes_1794586328314.jpg', 1, 1, 'Fluffy vanilla bean cupcake with buttercream swirl'],
-      ['prd-08', 'Dark Ganache Fudge Cupcake', 'Cupcakes', 95, 'Piece', '/src/assets/images/product_gourmet_cupcakes_1794586328314.jpg', 0, 1, 'Double chocolate cupcake topped with gold leaf'],
-      ['prd-09', 'Artisan Chocolate Truffles', 'Chocolates', 120, 'Gram', '/src/assets/images/product_chocolate_truffles_1794586329086.jpg', 1, 1, 'Hand-rolled hazelnut & dark chocolate pralines (per 100g base unit)'],
-      ['prd-10', 'Pistachio French Macarons', 'Desserts', 110, 'Piece', '/src/assets/images/product_chocolate_truffles_1794586329086.jpg', 0, 1, 'Delicate almond meringue shells with pistachio ganache'],
-      ['prd-11', 'Almond Butter Shortbread', 'Cookies', 280, 'Gram', '/src/assets/images/product_bakery_cookies_1794586329016.jpg', 0, 1, 'Crisp toasted almond cookies baked in pure butter'],
-      ['prd-12', 'Sea Salt Choco Chunk Cookies', 'Cookies', 240, 'Gram', '/src/assets/images/product_bakery_cookies_1794586329016.jpg', 1, 1, 'Chewy brown-butter cookies loaded with 70% dark chunks'],
-      ['prd-13', 'Baked Cheese Puff Patty', 'Snacks', 65, 'Piece', '/src/assets/images/product_bakery_cookies_1794586329016.jpg', 0, 1, 'Flaky savoury puff pastry with spiced cheddar filling'],
-      ['prd-14', 'Iced Belgian Mocha', 'Beverages', 160, 'Piece', '/src/assets/images/product_chocolate_truffles_1794586329086.jpg', 0, 1, 'Chilled espresso blended with Belgian dark cocoa'],
-      ['prd-15', 'Gold Birthday Topper & Candle', 'Others', 90, 'Piece', '/src/assets/images/product_gourmet_cupcakes_1794586328314.jpg', 0, 1, 'Acrylic celebration cake topper with sparkler candle'],
+      ['prd-01', 'Belgian Dark Chocolate Truffle', 'Cakes', 950, 'KG', '/images/product_truffle_cake_1794586326747.jpg', 1, 1, 'Rich dark Belgian ganache layered sponge cake'],
+      ['prd-02', 'Classic Red Velvet Celebration', 'Cakes', 1100, 'KG', '/images/product_red_velvet_1794586327823.jpg', 1, 1, 'Crimson cocoa sponge with whipped cream cheese frosting'],
+      ['prd-03', 'Fresh Strawberry Chantilly', 'Cakes', 980, 'KG', '/images/product_fruit_pastry_1794586327935.jpg', 1, 1, 'Vanilla sponge layered with fresh strawberries and cream'],
+      ['prd-04', 'Dutch Truffle Pastry Slice', 'Pastries', 140, 'Piece', '/images/product_truffle_cake_1794586326747.jpg', 1, 1, 'Single-serve decadent dark chocolate ganache slice'],
+      ['prd-05', 'Strawberry Mille-Feuille Pastry', 'Pastries', 165, 'Piece', '/images/product_fruit_pastry_1794586327935.jpg', 0, 1, 'Crisp puff pastry with vanilla bean cream & berries'],
+      ['prd-06', 'Red Velvet Cream Slice', 'Pastries', 150, 'Piece', '/images/product_red_velvet_1794586327823.jpg', 0, 1, 'Velvety single portion pastry with cream cheese swirl'],
+      ['prd-07', 'Madagascar Vanilla Cupcake', 'Cupcakes', 85, 'Piece', '/images/product_gourmet_cupcakes_1794586328314.jpg', 1, 1, 'Fluffy vanilla bean cupcake with buttercream swirl'],
+      ['prd-08', 'Dark Ganache Fudge Cupcake', 'Cupcakes', 95, 'Piece', '/images/product_gourmet_cupcakes_1794586328314.jpg', 0, 1, 'Double chocolate cupcake topped with gold leaf'],
+      ['prd-09', 'Artisan Chocolate Truffles', 'Chocolates', 120, 'Gram', '/images/product_chocolate_truffles_1794586329086.jpg', 1, 1, 'Hand-rolled hazelnut & dark chocolate pralines (per 100g base unit)'],
+      ['prd-10', 'Pistachio French Macarons', 'Desserts', 110, 'Piece', '/images/product_chocolate_truffles_1794586329086.jpg', 0, 1, 'Delicate almond meringue shells with pistachio ganache'],
+      ['prd-11', 'Almond Butter Shortbread', 'Cookies', 280, 'Gram', '/images/product_bakery_cookies_1794586329016.jpg', 0, 1, 'Crisp toasted almond cookies baked in pure butter'],
+      ['prd-12', 'Sea Salt Choco Chunk Cookies', 'Cookies', 240, 'Gram', '/images/product_bakery_cookies_1794586329016.jpg', 1, 1, 'Chewy brown-butter cookies loaded with 70% dark chunks'],
+      ['prd-13', 'Baked Cheese Puff Patty', 'Snacks', 65, 'Piece', '/images/product_bakery_cookies_1794586329016.jpg', 0, 1, 'Flaky savoury puff pastry with spiced cheddar filling'],
+      ['prd-14', 'Iced Belgian Mocha', 'Beverages', 160, 'Piece', '/images/product_chocolate_truffles_1794586329086.jpg', 0, 1, 'Chilled espresso blended with Belgian dark cocoa'],
+      ['prd-15', 'Gold Birthday Topper & Candle', 'Others', 90, 'Piece', '/images/product_gourmet_cupcakes_1794586328314.jpg', 0, 1, 'Acrylic celebration cake topper with sparkler candle'],
     ];
 
     for (const p of seedProducts) {

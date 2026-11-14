@@ -29,6 +29,15 @@ export function ReceiptModal({
   }, [settings.printer.paperSize]);
 
   useEffect(() => {
+    if (!receipt) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [receipt, onClose]);
+
+  useEffect(() => {
     if (!receipt) {
       setPrintError(null);
       setPrintedOnce(false);
@@ -90,33 +99,33 @@ export function ReceiptModal({
   const dateFmt = settings.application.dateFormat || 'DD-MM-YYYY';
   const paperWidthClass =
     paperSize === '58mm'
-      ? 'w-[240px] text-[11px]'
+      ? 'w-full max-w-[240px] text-[11px]'
       : paperSize === '80mm'
-      ? 'w-[320px] text-[12px]'
+      ? 'w-full max-w-[320px] text-[12px]'
       : 'w-full max-w-[680px] text-[13px]';
 
   return (
     <div
-      className="fixed inset-0 z-[95] flex items-center justify-center bg-[#302A40]/55 backdrop-blur-[2px] p-4"
+      className="fixed inset-0 z-[95] flex items-center justify-center bg-[#302A40]/55 backdrop-blur-[2px] p-2 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-label="Receipt Preview and Print"
     >
       <div className="w-full max-w-3xl max-h-[92vh] flex flex-col rounded-[14px] bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] shadow-[0_16px_44px_rgba(48,42,64,0.18)] overflow-hidden">
         {/* Top Action Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 border-b border-[#EAE7F0] dark:border-[#2E2842] bg-[#F7F7FB] dark:bg-[#151220]">
-          <div className="flex items-center gap-3">
-            <h3 className="font-display text-base font-semibold text-[#302A40] dark:text-[#F3F1FA]">
-              Receipt Preview · <span className="tabular-nums">{receipt.billNumber}</span>
+        <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 px-3 sm:px-5 py-3 border-b border-[#EAE7F0] dark:border-[#2E2842] bg-[#F7F7FB] dark:bg-[#151220]">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <h3 className="font-display text-[17px] sm:text-[19px] font-semibold text-[#302A40] dark:text-[#F3F1FA] truncate">
+              Receipt · <span className="tabular-nums">{receipt.billNumber}</span>
             </h3>
             {printedOnce && !printError && (
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                <CheckCircle2 className="w-3.5 h-3.5" /> Sent to printer
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400 shrink-0">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Printed
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1 p-1 rounded-[10px] bg-[#E9E2FF]/70 dark:bg-[#2A233D]">
               {(['58mm', '80mm', 'A4'] as const).map((sz) => (
                 <button
@@ -137,7 +146,7 @@ export function ReceiptModal({
             <button
               type="button"
               onClick={triggerBrowserPrint}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold transition-colors whitespace-nowrap shrink-0"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-[14px] font-semibold transition-colors whitespace-nowrap shrink-0"
             >
               <Printer className="w-4 h-4" />
               <span>{printError ? 'Retry Print' : 'Print Receipt'}</span>
@@ -173,11 +182,11 @@ export function ReceiptModal({
         )}
 
         {/* Scrollable Preview Canvas */}
-        <div className="flex-1 overflow-y-auto p-6 bg-[#F7F7FB] dark:bg-[#13101C] flex justify-center">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-[#F7F7FB] dark:bg-[#13101C] flex justify-center">
           <div
             id="easybill-print-sheet"
             data-paper={paperSize}
-            className={`${paperWidthClass} bg-white text-[#302A40] border border-[#EAE7F0] shadow-[0_4px_16px_rgba(48,42,64,0.06)] rounded-[12px] p-5 leading-snug h-fit`}
+            className={`${paperWidthClass} bg-white text-[#302A40] border border-[#EAE7F0] shadow-[0_4px_16px_rgba(48,42,64,0.06)] rounded-[12px] p-4 sm:p-5 leading-snug h-fit`}
           >
             {/* Company Header */}
             <div className="text-center border-b border-dashed border-[#D8D2E5] pb-3 mb-3">
@@ -226,9 +235,17 @@ export function ReceiptModal({
                 <span className="text-[#817A91]">Cashier:</span>
                 <span>{receipt.username}</span>
               </div>
+              {receipt.fulfillmentType && (
+                <div className="flex justify-between gap-2">
+                  <span className="text-[#817A91]">Order Type:</span>
+                  <span className="font-semibold text-[#302A40]">{receipt.fulfillmentType}</span>
+                </div>
+              )}
               {receipt.deliveryDate && (
                 <div className="flex justify-between gap-2">
-                  <span className="text-[#817A91]">Delivery:</span>
+                  <span className="text-[#817A91]">
+                    {receipt.fulfillmentType === 'Pickup' ? 'Pickup:' : 'Delivery:'}
+                  </span>
                   <span className="font-semibold text-[#302A40]">
                     {formatDateValue(receipt.deliveryDate, dateFmt)} {receipt.deliveryTime || ''}
                   </span>

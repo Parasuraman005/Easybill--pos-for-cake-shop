@@ -7,6 +7,8 @@ import {
   X,
   Wallet,
   Search,
+  AlertCircle,
+  RotateCcw,
 } from 'lucide-react';
 import { apiRequest } from '../lib/api';
 import { useSettings } from '../context/SettingsContext';
@@ -40,6 +42,7 @@ export function ExpensesPage() {
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'All' | ExpenseCategory>('All');
   const [monthFilter, setMonthFilter] = useState(getTodayYMD().slice(0, 7));
@@ -62,11 +65,15 @@ export function ExpensesPage() {
   const dateFmt = settings.application.dateFormat || 'DD-MM-YYYY';
 
   const loadExpenses = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
       const res = await apiRequest<Expense[]>('/api/expenses');
       setExpenses(res);
     } catch (err: any) {
-      showToast('Failed to load expenses', 'error', err?.message);
+      const msg = err?.message || 'Unable to load expenses.';
+      setLoadError(msg);
+      showToast('Failed to load expenses', 'error', msg);
     } finally {
       setLoading(false);
     }
@@ -75,6 +82,15 @@ export function ExpensesPage() {
   useEffect(() => {
     loadExpenses();
   }, [loadExpenses]);
+
+  useEffect(() => {
+    if (!modalOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setModalOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [modalOpen]);
 
   const filteredExpenses = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -206,10 +222,10 @@ export function ExpensesPage() {
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-xl font-bold text-[#302A40] dark:text-[#F3F1FA]">
+          <h1 className="font-display text-[22px] sm:text-[26px] leading-tight font-bold text-[#302A40] dark:text-[#F3F1FA]">
             Expenses &amp; Shop Ledger
           </h1>
-          <p className="text-xs font-medium text-[#817A91] mt-0.5">
+          <p className="text-[14px] font-normal text-[#817A91] mt-0.5">
             Track raw material purchases, utilities, rent, packaging, and staff payouts.
           </p>
         </div>
@@ -218,7 +234,7 @@ export function ExpensesPage() {
           <button
             type="button"
             onClick={handleExportCSV}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] text-xs font-semibold whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] text-[14px] font-semibold whitespace-nowrap shrink-0"
           >
             <Download className="w-4 h-4" />
             <span>Export CSV</span>
@@ -226,7 +242,7 @@ export function ExpensesPage() {
           <button
             type="button"
             onClick={openAddModal}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-[14px] font-semibold whitespace-nowrap shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>Add Expense</span>
@@ -235,27 +251,27 @@ export function ExpensesPage() {
       </div>
 
       {/* Monthly Expense Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="eb-card p-4">
-          <p className="text-xs font-semibold text-[#817A91]">
+          <p className="text-[13px] font-semibold text-[#817A91]">
             Monthly Total Expenses ({monthFilter || 'All'})
           </p>
-          <p className="mt-1.5 font-display text-2xl font-bold tabular-nums text-[#302A40] dark:text-[#F3F1FA]">
+          <p className="mt-1.5 font-display text-[26px] sm:text-[28px] leading-tight font-bold tabular-nums text-[#302A40] dark:text-[#F3F1FA]">
             {formatCurrency(monthlySummary.total, sym)}
           </p>
         </div>
         <div className="eb-card p-4">
-          <p className="text-xs font-semibold text-[#817A91]">Expense Entries</p>
-          <p className="mt-1.5 font-display text-2xl font-bold tabular-nums text-[#302A40] dark:text-[#F3F1FA]">
+          <p className="text-[13px] font-semibold text-[#817A91]">Expense Entries</p>
+          <p className="mt-1.5 font-display text-[26px] sm:text-[28px] leading-tight font-bold tabular-nums text-[#302A40] dark:text-[#F3F1FA]">
             {monthlySummary.count}
           </p>
         </div>
         <div className="eb-card p-4">
-          <p className="text-xs font-semibold text-[#817A91]">Highest Spend Category</p>
-          <p className="mt-1.5 font-display text-lg font-bold text-[#302A40] dark:text-[#F3F1FA] truncate">
+          <p className="text-[13px] font-semibold text-[#817A91]">Highest Spend Category</p>
+          <p className="mt-1.5 font-display text-[19px] font-bold text-[#302A40] dark:text-[#F3F1FA] truncate">
             {monthlySummary.topCategory}{' '}
             {monthlySummary.topAmount > 0 && (
-              <span className="text-sm font-bold text-[#7656C9] dark:text-[#C5B3F7] ml-1 tabular-nums">
+              <span className="text-[14px] font-bold text-[#7656C9] dark:text-[#C5B3F7] ml-1 tabular-nums">
                 ({formatCurrency(monthlySummary.topAmount, sym)})
               </span>
             )}
@@ -265,14 +281,14 @@ export function ExpensesPage() {
 
       {/* Filter Bar */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative">
+        <div className="relative w-full sm:w-auto">
           <Search className="w-4 h-4 text-[#817A91] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search description or category..."
-            className="pl-9 pr-3 py-2 rounded-[10px] bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] text-xs font-medium w-60 focus:outline-none focus:border-[#7656C9]"
+            className="pl-9 pr-3 py-2 rounded-[10px] bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] text-xs font-medium w-full sm:w-60 focus:outline-none focus:border-[#7656C9]"
           />
         </div>
 
@@ -280,7 +296,7 @@ export function ExpensesPage() {
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value as 'All' | ExpenseCategory)}
           aria-label="Filter by expense category"
-          className="px-3 py-2 rounded-[10px] bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] text-xs font-semibold focus:outline-none focus:border-[#7656C9]"
+          className="flex-1 min-w-[140px] sm:flex-none px-3 py-2 rounded-[10px] bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] text-xs font-semibold focus:outline-none focus:border-[#7656C9]"
         >
           <option value="All">All Categories</option>
           {EXPENSE_CATEGORIES.map((c) => (
@@ -295,98 +311,161 @@ export function ExpensesPage() {
           value={monthFilter}
           onChange={(e) => setMonthFilter(e.target.value)}
           aria-label="Filter by month"
-          className="px-3 py-2 rounded-[10px] bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] text-xs font-medium tabular-nums focus:outline-none focus:border-[#7656C9]"
+          className="flex-1 min-w-[140px] sm:flex-none px-3 py-2 rounded-[10px] bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] text-xs font-medium tabular-nums focus:outline-none focus:border-[#7656C9]"
         />
 
         {monthFilter && (
           <button
             type="button"
             onClick={() => setMonthFilter('')}
-            className="px-3 py-2 rounded-[10px] bg-[#E9E2FF] text-[#4B3194] text-xs font-semibold"
+            className="px-3 py-2 rounded-[10px] bg-[#E9E2FF] text-[#4B3194] text-xs font-semibold whitespace-nowrap"
           >
             All Months
           </button>
         )}
       </div>
 
-      {/* Expense Table */}
+      {/* Expense Table / Mobile Cards */}
       <div className="eb-card overflow-hidden">
         {loading ? (
-          <div className="p-8 space-y-3 animate-pulse">
+          <div className="p-6 sm:p-8 space-y-3 animate-pulse">
             {[1, 2, 3].map((i) => (
               <div key={i} className="h-12 rounded-[10px] bg-[#F7F7FB] dark:bg-[#13101C]" />
             ))}
           </div>
+        ) : loadError ? (
+          <div className="p-10 text-center space-y-3">
+            <AlertCircle className="w-9 h-9 mx-auto text-rose-500" />
+            <div>
+              <p className="text-sm font-semibold text-[#302A40] dark:text-[#F3F1FA]">
+                Unable to load expenses
+              </p>
+              <p className="text-xs font-medium text-[#817A91] mt-1">{loadError}</p>
+            </div>
+            <button
+              type="button"
+              onClick={loadExpenses}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Retry</span>
+            </button>
+          </div>
         ) : filteredExpenses.length === 0 ? (
-          <div className="p-12 text-center">
+          <div className="p-10 sm:p-12 text-center">
             <Wallet className="w-9 h-9 mx-auto text-[#817A91]/50 mb-2" />
             <p className="text-sm font-semibold text-[#302A40] dark:text-[#F3F1FA]">
               No expense entries found
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-[#F7F7FB] dark:bg-[#151220] text-xs font-semibold text-[#817A91] border-b border-[#EAE7F0] dark:border-[#2E2842]">
-                <tr>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Category</th>
-                  <th className="px-4 py-3">Description</th>
-                  <th className="px-4 py-3">Payment Mode</th>
-                  <th className="px-4 py-3 text-right">Amount</th>
-                  <th className="px-4 py-3">Added By</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#EAE7F0] dark:divide-[#2E2842]">
-                {filteredExpenses.map((exp) => (
-                  <tr
-                    key={exp.id}
-                    className="hover:bg-[#F7F7FB]/80 dark:hover:bg-[#231E33] transition-colors"
-                  >
-                    <td className="px-4 py-3 text-xs font-medium text-[#817A91] tabular-nums whitespace-nowrap">
-                      {formatDateValue(exp.expenseDate, dateFmt)}
-                    </td>
-                    <td className="px-4 py-3 text-xs font-semibold text-[#7656C9] dark:text-[#C5B3F7] whitespace-nowrap">
-                      {exp.category}
-                    </td>
-                    <td className="px-4 py-3 text-xs font-medium text-[#302A40] dark:text-[#F3F1FA]">
-                      {exp.description}
-                    </td>
-                    <td className="px-4 py-3 text-xs font-medium text-[#817A91] whitespace-nowrap">
-                      {exp.paymentMode}
-                    </td>
-                    <td className="px-4 py-3 text-right font-display text-xs font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums whitespace-nowrap">
+          <>
+            {/* Mobile Expense Cards */}
+            <div className="md:hidden divide-y divide-[#EAE7F0] dark:divide-[#2E2842]">
+              {filteredExpenses.map((exp) => (
+                <div key={exp.id} className="p-4 space-y-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <span className="text-xs font-semibold text-[#7656C9] dark:text-[#C5B3F7]">
+                        {exp.category}
+                      </span>
+                      <p className="text-sm font-semibold text-[#302A40] dark:text-[#F3F1FA]">
+                        {exp.description}
+                      </p>
+                      <p className="text-[11px] font-medium text-[#817A91] tabular-nums">
+                        {formatDateValue(exp.expenseDate, dateFmt)} · {exp.paymentMode} · {exp.username}
+                      </p>
+                    </div>
+                    <p className="font-display text-sm font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums shrink-0">
                       {formatMoneyExact(exp.amount, sym)}
-                    </td>
-                    <td className="px-4 py-3 text-xs font-medium text-[#817A91] whitespace-nowrap">
-                      {exp.username}
-                    </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <div className="inline-flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => openEditModal(exp)}
-                          className="p-1.5 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194]"
-                          aria-label="Edit expense"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteTarget(exp)}
-                          className="p-1.5 rounded-[10px] border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50"
-                          aria-label="Delete expense"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-end gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => openEditModal(exp)}
+                      className="p-1.5 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194]"
+                      aria-label={`Edit ${exp.description}`}
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTarget(exp)}
+                      className="p-1.5 rounded-[10px] border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50"
+                      aria-label={`Delete ${exp.description}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Expense Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-[14px] text-left">
+                <thead className="bg-[#F7F7FB] dark:bg-[#151220] text-[13px] font-semibold text-[#817A91] border-b border-[#EAE7F0] dark:border-[#2E2842]">
+                  <tr>
+                    <th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3">Category</th>
+                    <th className="px-4 py-3">Description</th>
+                    <th className="px-4 py-3">Payment Mode</th>
+                    <th className="px-4 py-3 text-right">Amount</th>
+                    <th className="px-4 py-3">Added By</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-[#EAE7F0] dark:divide-[#2E2842]">
+                  {filteredExpenses.map((exp) => (
+                    <tr
+                      key={exp.id}
+                      className="hover:bg-[#F7F7FB]/80 dark:hover:bg-[#231E33] transition-colors"
+                    >
+                      <td className="px-4 py-3 text-xs font-medium text-[#817A91] tabular-nums whitespace-nowrap">
+                        {formatDateValue(exp.expenseDate, dateFmt)}
+                      </td>
+                      <td className="px-4 py-3 text-xs font-semibold text-[#7656C9] dark:text-[#C5B3F7] whitespace-nowrap">
+                        {exp.category}
+                      </td>
+                      <td className="px-4 py-3 text-xs font-medium text-[#302A40] dark:text-[#F3F1FA]">
+                        {exp.description}
+                      </td>
+                      <td className="px-4 py-3 text-xs font-medium text-[#817A91] whitespace-nowrap">
+                        {exp.paymentMode}
+                      </td>
+                      <td className="px-4 py-3 text-right font-display text-xs font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums whitespace-nowrap">
+                        {formatMoneyExact(exp.amount, sym)}
+                      </td>
+                      <td className="px-4 py-3 text-xs font-medium text-[#817A91] whitespace-nowrap">
+                        {exp.username}
+                      </td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(exp)}
+                            className="p-1.5 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194]"
+                            aria-label="Edit expense"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTarget(exp)}
+                            className="p-1.5 rounded-[10px] border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50"
+                            aria-label="Delete expense"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
@@ -411,8 +490,8 @@ export function ExpensesPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="p-5 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleSave} className="p-5 space-y-4 max-h-[78vh] overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold mb-1">Category</label>
                   <select
@@ -449,7 +528,7 @@ export function ExpensesPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold mb-1">Amount ({sym}) *</label>
                   <input
@@ -482,14 +561,14 @@ export function ExpensesPage() {
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] text-xs font-semibold"
+                  className="px-4 py-2 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] text-[14px] font-semibold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold disabled:opacity-60"
+                  className="px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-[14px] font-semibold disabled:opacity-60"
                 >
                   {saving ? 'Saving...' : editing ? 'Update Expense' : 'Save Expense'}
                 </button>

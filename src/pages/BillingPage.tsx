@@ -9,15 +9,11 @@ import {
   ShoppingCart,
   UserPlus,
   Cake,
-  Cookie,
-  Coffee,
-  Sparkles,
-  UtensilsCrossed,
-  Gift,
-  Croissant,
-  Candy,
-  LayoutGrid,
+  Store,
+  Truck,
   X,
+  AlertCircle,
+  RotateCcw,
 } from 'lucide-react';
 import { apiRequest } from '../lib/api';
 import { useSettings } from '../context/SettingsContext';
@@ -29,6 +25,7 @@ import type {
   CakeOrder,
   CartItem,
   Customer,
+  FulfillmentType,
   PaymentMode,
   Product,
   ProductCategory,
@@ -42,22 +39,22 @@ interface BillingPageProps {
 const CATEGORIES: {
   key: 'All' | 'Favorites' | ProductCategory;
   label: string;
-  icon: React.ComponentType<{ className?: string }>;
 }[] = [
-  { key: 'All', label: 'All', icon: LayoutGrid },
-  { key: 'Favorites', label: 'Favorites', icon: Star },
-  { key: 'Cakes', label: 'Cakes', icon: Cake },
-  { key: 'Pastries', label: 'Pastries', icon: Croissant },
-  { key: 'Cupcakes', label: 'Cupcakes', icon: Sparkles },
-  { key: 'Chocolates', label: 'Chocolates', icon: Candy },
-  { key: 'Cookies', label: 'Cookies', icon: Cookie },
-  { key: 'Desserts', label: 'Desserts', icon: UtensilsCrossed },
-  { key: 'Snacks', label: 'Snacks', icon: ShoppingCart },
-  { key: 'Beverages', label: 'Beverages', icon: Coffee },
-  { key: 'Others', label: 'Others', icon: Gift },
+  { key: 'All', label: 'All' },
+  { key: 'Favorites', label: 'Favorites' },
+  { key: 'Cakes', label: 'Cakes' },
+  { key: 'Pastries', label: 'Pastries' },
+  { key: 'Cupcakes', label: 'Cupcakes' },
+  { key: 'Chocolates', label: 'Chocolates' },
+  { key: 'Cookies', label: 'Cookies' },
+  { key: 'Desserts', label: 'Desserts' },
+  { key: 'Snacks', label: 'Snacks' },
+  { key: 'Beverages', label: 'Beverages' },
+  { key: 'Others', label: 'Others' },
 ];
 
 const KG_PRESETS = [0.5, 1, 1.5, 2];
+const GRAM_PRESETS = [0.5, 1, 2, 5];
 
 export function BillingPage({ onPrintReceipt }: BillingPageProps) {
   const { settings } = useSettings();
@@ -66,6 +63,7 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'All' | 'Favorites' | ProductCategory>('All');
@@ -85,6 +83,8 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
+
+  const [fulfillmentType, setFulfillmentType] = useState<FulfillmentType>('Pickup');
   const [deliveryDate, setDeliveryDate] = useState(getTodayYMD());
   const [deliveryTime, setDeliveryTime] = useState('18:00');
   const [orderNotes, setOrderNotes] = useState('');
@@ -93,6 +93,8 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
   const sym = settings.application.currencySymbol || '₹';
 
   const loadData = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
       const [prodRes, custRes] = await Promise.all([
         apiRequest<Product[]>('/api/products'),
@@ -101,7 +103,9 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
       setProducts(prodRes.filter((p) => p.isActive));
       setCustomers(custRes);
     } catch (err: any) {
-      showToast('Failed to load catalog', 'error', err?.message);
+      const msg = err?.message || 'Unable to load menu catalog.';
+      setLoadError(msg);
+      showToast('Failed to load catalog', 'error', msg);
     } finally {
       setLoading(false);
     }
@@ -215,7 +219,7 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
   );
 
   const safeDiscountPct = settings.billing.allowDiscount
-    ? Math.max(0, Math.min(discountPercent || 0, settings.billing.maxDiscountPercent || 100))
+    ? Math.max(0, Math.min(Number.isFinite(discountPercent) ? discountPercent : 0, settings.billing.maxDiscountPercent || 100))
     : 0;
   const discountAmount = round2((subtotal * safeDiscountPct) / 100);
   const taxable = Math.max(0, round2(subtotal - discountAmount));
@@ -225,7 +229,7 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
 
   const parsedAdvance =
     billingMode === 'order' && paymentMode === 'Advance'
-      ? Number(advanceAmount || 0)
+      ? Math.max(0, Number(advanceAmount || 0))
       : grandTotal;
   const balanceAmount =
     billingMode === 'order' && paymentMode === 'Advance'
@@ -248,6 +252,14 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
     setCustomerAddress('');
   };
 
+  const handleClearCart = () => {
+    setCart([]);
+    setDiscountPercent(0);
+    setAdvanceAmount('');
+    setOrderNotes('');
+    showToast('Cart cleared', 'info');
+  };
+
   const handleSaveAndPrint = async () => {
     if (cart.length === 0) {
       showToast('Cart is empty', 'error', 'Add at least one product before billing.');
@@ -264,7 +276,11 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
         return;
       }
       if (!deliveryDate) {
-        showToast('Delivery Date Required', 'error', 'Select an expected delivery date.');
+        showToast('Schedule Date Required', 'error', `Select an expected ${fulfillmentType.toLowerCase()} date.`);
+        return;
+      }
+      if (fulfillmentType === 'Delivery' && !customerAddress.trim()) {
+        showToast('Delivery Address Required', 'error', 'Enter the delivery address when Delivery is selected.');
         return;
       }
       if (paymentMode === 'Advance') {
@@ -297,6 +313,7 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
           customerName: customerName.trim() || 'Walk-in Customer',
           customerPhone: customerPhone.trim(),
           customerAddress: customerAddress.trim(),
+          fulfillmentType: billingMode === 'order' ? fulfillmentType : undefined,
           deliveryDate,
           deliveryTime,
           notes: orderNotes.trim(),
@@ -306,7 +323,9 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
       showToast(
         `${billingMode === 'order' ? 'Order & Bill' : 'Bill'} ${response.bill.billNumber} Saved`,
         'success',
-        response.order ? `Order ${response.order.orderNumber} scheduled.` : 'Transaction completed.'
+        response.order
+          ? `Order ${response.order.orderNumber} (${fulfillmentType}) scheduled.`
+          : 'Transaction completed.'
       );
 
       apiRequest<Customer[]>('/api/customers')
@@ -327,76 +346,101 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
     }
   };
 
+  const scrollToCartPanel = () => {
+    document.getElementById('billing-cart-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
-    <div className="flex flex-col lg:flex-row gap-5 items-start">
-      {/* Left Side: Product Catalog */}
-      <div className="flex-1 min-w-0 w-full space-y-4">
-        {/* Sticky Product Search Bar & Category Filter Bar */}
-        <div className="sticky top-[96px] z-35 bg-[#F7F7FB] dark:bg-[#13101C] pt-1 pb-3 space-y-3">
-          {/* A. Product Search Bar */}
-          <div className="relative">
-            <Search className="w-4 h-4 text-[#817A91] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search cakes, pastries, cupcakes or categories..."
-              className="w-full pl-10 pr-10 py-2.5 rounded-[12px] bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] text-sm font-medium text-[#302A40] dark:text-[#F3F1FA] placeholder:text-[#817A91]/80 focus:outline-none focus:ring-2 focus:ring-[#7656C9]/20 focus:border-[#7656C9] transition-colors shadow-[0_2px_8px_rgba(48,42,64,0.04)]"
-            />
-            {searchQuery && (
+    <div className="flex flex-col lg:flex-row gap-4 items-start">
+      {/* Left Side: Product Selection Catalog */}
+      <div className="flex-1 min-w-0 w-full space-y-3">
+        {/* Sticky Search Bar & Category Filter Strip */}
+        <div className="sticky top-11 sm:top-12 z-20 bg-[#F7F7FB] dark:bg-[#13101C] pt-1 pb-2.5 space-y-2.5">
+          {/* Search Input & Mobile Cart Jump */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="relative flex-1 min-w-0">
+              <Search className="w-4 h-4 text-[#817A91] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search cakes, pastries, cupcakes..."
+                className="w-full pl-10 pr-9 py-2.5 rounded-[12px] bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] text-sm font-medium text-[#302A40] dark:text-[#F3F1FA] placeholder:text-[#817A91]/80 focus:outline-none focus:ring-2 focus:ring-[#7656C9]/20 focus:border-[#7656C9] transition-colors shadow-[0_2px_8px_rgba(48,42,64,0.04)]"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#817A91] hover:text-[#302A40] p-1"
+                  aria-label="Clear product search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <span className="hidden sm:inline-block text-xs font-semibold text-[#817A91] tabular-nums whitespace-nowrap">
+              {filteredProducts.length} items
+            </span>
+            {cart.length > 0 && (
               <button
                 type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#817A91] hover:text-[#302A40] p-1"
-                aria-label="Clear product search"
+                onClick={scrollToCartPanel}
+                className="lg:hidden inline-flex items-center gap-1.5 px-3 py-2.5 rounded-[12px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-bold tabular-nums shadow-sm whitespace-nowrap shrink-0"
+                aria-label="Jump to shopping cart"
               >
-                <X className="w-4 h-4" />
+                <ShoppingCart className="w-3.5 h-3.5" />
+                <span>{cart.length}</span>
+                <span className="hidden min-[380px]:inline">· {formatMoneyExact(grandTotal, sym)}</span>
               </button>
             )}
           </div>
 
-        {/* B. Circular Category Buttons */}
-        <div className="flex items-center gap-3 overflow-x-auto thin-scrollbar pb-1">
-          {CATEGORIES.map((cat) => {
-            const Icon = cat.icon;
-            const active = selectedCategory === cat.key;
-            return (
-              <button
-                key={cat.key}
-                type="button"
-                onClick={() => setSelectedCategory(cat.key)}
-                className="flex flex-col items-center gap-1.5 shrink-0 group focus:outline-none"
-              >
-                <span
-                  className={`w-12 h-12 rounded-full flex items-center justify-center border transition-all ${
+          {/* Mini-Box Category Filters */}
+          <div className="flex items-center gap-2 overflow-x-auto thin-scrollbar pb-0.5">
+            {CATEGORIES.map((cat) => {
+              const active = selectedCategory === cat.key;
+              return (
+                <button
+                  key={cat.key}
+                  type="button"
+                  onClick={() => setSelectedCategory(cat.key)}
+                  className={`px-3.5 py-1.5 rounded-[10px] text-xs font-semibold whitespace-nowrap transition-colors border shrink-0 ${
                     active
-                      ? 'bg-[#7656C9] border-[#7656C9] text-white shadow-[0_4px_12px_rgba(118,86,201,0.3)] scale-[1.03]'
-                      : 'bg-white dark:bg-[#1B1726] border-[#EAE7F0] dark:border-[#2E2842] text-[#817A91] dark:text-[#A69FB8] group-hover:border-[#7656C9] group-hover:text-[#7656C9] group-hover:bg-[#E9E2FF]/40'
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                </span>
-                <span
-                  className={`text-xs whitespace-nowrap ${
-                    active
-                      ? 'text-[#7656C9] dark:text-[#C5B3F7] font-semibold'
-                      : 'text-[#817A91] font-medium'
+                      ? 'bg-[#7656C9] border-[#7656C9] text-white shadow-sm'
+                      : 'bg-white dark:bg-[#1B1726] border-[#EAE7F0] dark:border-[#2E2842] text-[#817A91] dark:text-[#A69FB8] hover:border-[#7656C9] hover:text-[#302A40] dark:hover:text-white'
                   }`}
                 >
                   {cat.label}
-                </span>
-              </button>
-            );
-          })}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
 
-        {/* C. Product Grid — 5 Product Cards Per Row on Desktop */}
+        {/* Product Grid */}
         {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
-            {Array.from({ length: 10 }).map((_, idx) => (
-              <div key={idx} className="h-60 eb-card animate-pulse" />
+          <div className="grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+            {Array.from({ length: 8 }).map((_, idx) => (
+              <div key={idx} className="h-64 eb-card animate-pulse" />
             ))}
+          </div>
+        ) : loadError ? (
+          <div className="eb-card p-10 text-center space-y-3">
+            <AlertCircle className="w-8 h-8 mx-auto text-rose-500" />
+            <div>
+              <p className="text-sm font-semibold text-[#302A40] dark:text-[#F3F1FA]">
+                Unable to load product catalog
+              </p>
+              <p className="text-xs font-medium text-[#817A91] mt-1">{loadError}</p>
+            </div>
+            <button
+              type="button"
+              onClick={loadData}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold transition-colors"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Retry</span>
+            </button>
           </div>
         ) : filteredProducts.length === 0 ? (
           <div className="eb-card p-10 text-center">
@@ -409,10 +453,17 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
             {filteredProducts.map((product) => {
               const selectedWt = getProductAddQty(product);
               const inCart = cart.find((c) => c.productId === product.id);
+              const presets =
+                product.unit === 'KG'
+                  ? KG_PRESETS
+                  : product.unit === 'Gram'
+                  ? GRAM_PRESETS
+                  : null;
+
               return (
                 <div
                   key={product.id}
@@ -450,16 +501,16 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
                         {product.name}
                       </h3>
 
-                      <div className="mt-2 flex items-baseline justify-between gap-1">
+                      <div className="mt-1.5 flex items-baseline justify-between gap-1">
                         <span className="font-display text-sm font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums">
                           {formatMoneyExact(product.price, sym)}
                         </span>
                         <span className="text-[11px] font-medium text-[#817A91]">/{product.unit}</span>
                       </div>
 
-                      {product.unit === 'KG' && (
+                      {presets && (
                         <div className="mt-2 grid grid-cols-4 gap-1">
-                          {KG_PRESETS.map((wt) => (
+                          {presets.map((wt) => (
                             <button
                               key={wt}
                               type="button"
@@ -480,7 +531,7 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
                     </div>
                   </div>
 
-                  <div className="px-3 pb-3">
+                  <div className="px-3 pb-3 pt-0.5">
                     <button
                       type="button"
                       onClick={() => addToCart(product)}
@@ -488,7 +539,7 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
                     >
                       <Plus className="w-3.5 h-3.5" />
                       <span>
-                        Add {product.unit === 'KG' ? `${selectedWt} KG` : 'to Cart'}
+                        Add {presets ? `${selectedWt} ${product.unit}` : 'to Cart'}
                       </span>
                     </button>
                   </div>
@@ -499,14 +550,15 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
         )}
       </div>
 
-      {/* D. Right-Side Sticky Shopping Cart / Billing Panel */}
+      {/* Right Side: Sticky Shopping Cart & Payment Panel */}
       <aside
+        id="billing-cart-panel"
         aria-label="Billing panel"
-        className="w-full lg:w-[410px] xl:w-[435px] shrink-0 lg:sticky lg:top-[100px] eb-card overflow-hidden flex flex-col max-h-[calc(100vh-9.5rem)]"
+        className="w-full lg:w-[375px] xl:w-[420px] 2xl:w-[445px] shrink-0 lg:sticky lg:top-[60px] eb-card overflow-hidden flex flex-col lg:max-h-[calc(100vh-7.5rem)]"
       >
-        {/* Cart Header: Walk-in vs Orders Toggle */}
-        <div className="p-3.5 border-b border-[#EAE7F0] dark:border-[#2E2842] flex items-center justify-between gap-3 bg-[#F7F7FB] dark:bg-[#151220]">
-          <div className="flex items-center gap-1 p-1 rounded-[10px] bg-[#E9E2FF]/70 dark:bg-[#2A233D] w-full">
+        {/* Walk-in vs Orders Toggle */}
+        <div className="p-3 border-b border-[#EAE7F0] dark:border-[#2E2842] flex items-center justify-between gap-2.5 bg-[#F7F7FB] dark:bg-[#151220]">
+          <div className="flex items-center gap-1 p-1 rounded-[10px] bg-[#E9E2FF]/70 dark:bg-[#2A233D] flex-1">
             <button
               type="button"
               onClick={() => setBillingMode('walkin')}
@@ -516,7 +568,7 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
                   : 'text-[#4B3194] dark:text-[#D9CEFF] hover:text-[#302A40]'
               }`}
             >
-              Walk-in
+              Walk-in Bill
             </button>
             <button
               type="button"
@@ -527,26 +579,22 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
                   : 'text-[#4B3194] dark:text-[#D9CEFF] hover:text-[#302A40]'
               }`}
             >
-              Orders
+              Cake Orders
             </button>
           </div>
           {cart.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setCart([])}
-              className="text-xs font-semibold text-[#817A91] hover:text-red-600 whitespace-nowrap shrink-0 px-1.5"
-            >
-              Clear
-            </button>
+            <span className="px-2.5 py-1 rounded-[8px] bg-[#E9E2FF] dark:bg-[#2A233D] text-[#4B3194] dark:text-[#D9CEFF] text-xs font-bold tabular-nums shrink-0">
+              {cart.length} {cart.length === 1 ? 'item' : 'items'}
+            </span>
           )}
         </div>
 
-        {/* Scrollable Cart + Payment + Customer Body */}
+        {/* Scrollable Cart, Totals, Customer & Payment Sections */}
         <div className="flex-1 overflow-y-auto thin-scrollbar divide-y divide-[#EAE7F0] dark:divide-[#2E2842]">
           {/* Cart Items */}
           <div className="p-4">
             {cart.length === 0 ? (
-              <div className="py-8 text-center">
+              <div className="py-6 text-center">
                 <ShoppingCart className="w-8 h-8 mx-auto text-[#817A91]/50 mb-2" />
                 <p className="text-sm font-semibold text-[#302A40] dark:text-[#F3F1FA]">
                   Cart is empty
@@ -558,7 +606,7 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
             ) : (
               <div className="space-y-3">
                 {cart.map((item) => {
-                  const step = item.unit === 'KG' ? 0.5 : 1;
+                  const step = item.unit === 'KG' || item.unit === 'Gram' ? 0.5 : 1;
                   return (
                     <div
                       key={item.productId}
@@ -573,7 +621,7 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="flex items-center gap-1 shrink-0">
                         <button
                           type="button"
                           onClick={() => updateCartQty(item.productId, item.quantity - step)}
@@ -585,7 +633,7 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
                         <input
                           type="number"
                           min="0.1"
-                          step={item.unit === 'KG' ? '0.25' : '1'}
+                          step={item.unit === 'Piece' ? '1' : '0.25'}
                           value={item.quantity}
                           onChange={(e) =>
                             updateCartQty(item.productId, parseFloat(e.target.value))
@@ -623,7 +671,7 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
             )}
           </div>
 
-          {/* Billing Summary */}
+          {/* Tax & Total Summary */}
           <div className="p-4 space-y-2 text-xs bg-[#F7F7FB]/80 dark:bg-[#151220] tabular-nums">
             <div className="flex justify-between font-medium text-[#817A91]">
               <span>Subtotal</span>
@@ -634,7 +682,7 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
 
             {settings.billing.allowDiscount && (
               <div className="flex items-center justify-between gap-2 font-medium text-[#817A91]">
-                <label htmlFor="billing-discount" className="whitespace-nowrap font-semibold">
+                <label htmlFor="billing-discount" className="whitespace-nowrap text-[13px] font-semibold">
                   Discount (%)
                 </label>
                 <div className="flex items-center gap-2">
@@ -644,8 +692,8 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
                     min={0}
                     max={settings.billing.maxDiscountPercent || 100}
                     value={discountPercent}
-                    onChange={(e) => setDiscountPercent(Number(e.target.value))}
-                    className="w-16 text-right px-2 py-1 rounded-[8px] border border-[#EAE7F0] dark:border-[#2E2842] bg-white dark:bg-[#1B1726] text-xs font-semibold text-[#302A40] dark:text-[#F3F1FA] focus:outline-none focus:border-[#7656C9]"
+                    onChange={(e) => setDiscountPercent(Number(e.target.value) || 0)}
+                    className="w-16 text-right px-2 py-1 rounded-[8px] border border-[#EAE7F0] dark:border-[#2E2842] bg-white dark:bg-[#1B1726] text-[13px] font-semibold text-[#302A40] dark:text-[#F3F1FA] focus:outline-none focus:border-[#7656C9]"
                   />
                   <span className="font-semibold text-emerald-700 dark:text-emerald-400 min-w-[64px] text-right">
                     -{formatMoneyExact(discountAmount, sym)}
@@ -655,32 +703,32 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
             )}
 
             {settings.billing.gstEnabled && (
-              <div className="flex justify-between font-medium text-[#817A91]">
+              <div className="flex justify-between text-[13px] font-medium text-[#817A91]">
                 <span>GST ({taxRate}%)</span>
                 <span>{formatMoneyExact(taxAmount, sym)}</span>
               </div>
             )}
 
             <div className="flex justify-between items-baseline pt-2 border-t border-[#EAE7F0] dark:border-[#2E2842] text-[#302A40] dark:text-[#F3F1FA]">
-              <span className="font-display text-sm font-bold">Grand Total</span>
-              <span className="font-display text-xl font-bold text-[#7656C9] dark:text-[#C5B3F7]">
+              <span className="font-display text-[15px] font-bold">Grand Total</span>
+              <span className="font-display text-[22px] font-bold text-[#7656C9] dark:text-[#C5B3F7]">
                 {formatMoneyExact(grandTotal, sym)}
               </span>
             </div>
           </div>
 
-          {/* Payment Mode */}
+          {/* Payment Mode & Orders Options */}
           <div className="p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-[#302A40] dark:text-[#E9E2FF]">
+              <span className="text-[13px] font-semibold text-[#302A40] dark:text-[#E9E2FF]">
                 Payment Mode
               </span>
-              <span className="text-xs font-semibold text-[#817A91] tabular-nums">
+              <span className="text-[13px] font-semibold text-[#817A91] tabular-nums">
                 Payable: {formatMoneyExact(grandTotal, sym)}
               </span>
             </div>
 
-            <div className={`grid gap-1.5 ${billingMode === 'order' ? 'grid-cols-4' : 'grid-cols-3'}`}>
+            <div className={`grid gap-1.5 ${billingMode === 'order' ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
               {(['Cash', 'UPI', 'Card', ...(billingMode === 'order' ? ['Advance'] : [])] as PaymentMode[]).map(
                 (mode) => (
                   <button
@@ -701,25 +749,37 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
 
             {billingMode === 'order' && paymentMode === 'Advance' && (
               <div className="rounded-[12px] bg-[#F7F7FB] dark:bg-[#13101C] border border-[#EAE7F0] dark:border-[#2E2842] p-3 space-y-2 tabular-nums">
-                <div>
+                <div className="flex items-center justify-between gap-2">
                   <label
                     htmlFor="advance-received"
-                    className="block text-xs font-semibold text-[#302A40] dark:text-[#E9E2FF] mb-1"
+                    className="text-xs font-semibold text-[#302A40] dark:text-[#E9E2FF]"
                   >
-                    Advance Amount Received ({sym})
+                    Advance Received ({sym})
                   </label>
-                  <input
-                    id="advance-received"
-                    type="number"
-                    min={0}
-                    max={grandTotal}
-                    step="0.01"
-                    value={advanceAmount}
-                    onChange={(e) => setAdvanceAmount(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full px-3 py-1.5 rounded-[10px] border border-[#EAE7F0] dark:border-[#2E2842] bg-white dark:bg-[#1B1726] text-sm font-bold text-[#302A40] dark:text-[#F3F1FA] focus:outline-none focus:border-[#7656C9]"
-                  />
+                  <div className="flex items-center gap-1">
+                    {[0.25, 0.5].map((ratio) => (
+                      <button
+                        key={ratio}
+                        type="button"
+                        onClick={() => setAdvanceAmount(String(round2(grandTotal * ratio)))}
+                        className="px-2 py-0.5 rounded-[6px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] text-[10px] font-semibold"
+                      >
+                        {ratio * 100}%
+                      </button>
+                    ))}
+                  </div>
                 </div>
+                <input
+                  id="advance-received"
+                  type="number"
+                  min={0}
+                  max={grandTotal}
+                  step="0.01"
+                  value={advanceAmount}
+                  onChange={(e) => setAdvanceAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full px-3 py-1.5 rounded-[10px] border border-[#EAE7F0] dark:border-[#2E2842] bg-white dark:bg-[#1B1726] text-sm font-bold text-[#302A40] dark:text-[#F3F1FA] focus:outline-none focus:border-[#7656C9]"
+                />
                 <div className="text-xs font-medium space-y-1 pt-1">
                   <div className="flex justify-between text-[#817A91]">
                     <span>Total Order Amount</span>
@@ -738,57 +798,97 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
             )}
 
             {billingMode === 'order' && (
-              <div className="grid grid-cols-2 gap-2.5 pt-1">
+              <div className="space-y-2.5 pt-1">
+                {/* Pickup vs Delivery Toggle */}
+                <div>
+                  <span className="block text-[11px] font-semibold text-[#302A40] dark:text-[#E9E2FF] mb-1">
+                    Order Fulfillment
+                  </span>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {(['Pickup', 'Delivery'] as FulfillmentType[]).map((ft) => {
+                      const Icon = ft === 'Pickup' ? Store : Truck;
+                      const active = fulfillmentType === ft;
+                      return (
+                        <button
+                          key={ft}
+                          type="button"
+                          onClick={() => setFulfillmentType(ft)}
+                          className={`py-1.5 px-3 rounded-[10px] text-xs font-semibold border inline-flex items-center justify-center gap-1.5 transition-colors ${
+                            active
+                              ? 'bg-[#7656C9] border-[#7656C9] text-white'
+                              : 'bg-[#F7F7FB] dark:bg-[#13101C] border-[#EAE7F0] dark:border-[#2E2842] text-[#817A91] hover:border-[#7656C9] hover:text-[#302A40]'
+                          }`}
+                        >
+                          <Icon className="w-3.5 h-3.5" />
+                          <span>{ft}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Schedule Date & Time */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label
+                      htmlFor="order-delivery-date"
+                      className="block text-[13px] font-semibold text-[#302A40] dark:text-[#E9E2FF] mb-1"
+                    >
+                      {fulfillmentType} Date *
+                    </label>
+                    <input
+                      id="order-delivery-date"
+                      type="date"
+                      value={deliveryDate}
+                      onChange={(e) => setDeliveryDate(e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-[10px] border border-[#EAE7F0] dark:border-[#2E2842] bg-[#F7F7FB] dark:bg-[#13101C] text-[13px] font-medium tabular-nums focus:outline-none focus:border-[#7656C9]"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="order-delivery-time"
+                      className="block text-[13px] font-semibold text-[#302A40] dark:text-[#E9E2FF] mb-1"
+                    >
+                      {fulfillmentType} Time
+                    </label>
+                    <input
+                      id="order-delivery-time"
+                      type="time"
+                      value={deliveryTime}
+                      onChange={(e) => setDeliveryTime(e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-[10px] border border-[#EAE7F0] dark:border-[#2E2842] bg-[#F7F7FB] dark:bg-[#13101C] text-[13px] font-medium tabular-nums focus:outline-none focus:border-[#7656C9]"
+                    />
+                  </div>
+                </div>
+
+                {/* Cake Customization Notes */}
                 <div>
                   <label
-                    htmlFor="order-delivery-date"
-                    className="block text-[11px] font-semibold text-[#302A40] dark:text-[#E9E2FF] mb-1"
+                    htmlFor="order-custom-notes"
+                    className="block text-[13px] font-semibold text-[#302A40] dark:text-[#E9E2FF] mb-1"
                   >
-                    Delivery Date *
+                    Cake Customization Notes
                   </label>
-                  <input
-                    id="order-delivery-date"
-                    type="date"
-                    value={deliveryDate}
-                    onChange={(e) => setDeliveryDate(e.target.value)}
-                    className="w-full px-2.5 py-1.5 rounded-[10px] border border-[#EAE7F0] dark:border-[#2E2842] bg-[#F7F7FB] dark:bg-[#13101C] text-xs font-medium tabular-nums focus:outline-none focus:border-[#7656C9]"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="order-delivery-time"
-                    className="block text-[11px] font-semibold text-[#302A40] dark:text-[#E9E2FF] mb-1"
-                  >
-                    Delivery Time
-                  </label>
-                  <input
-                    id="order-delivery-time"
-                    type="time"
-                    value={deliveryTime}
-                    onChange={(e) => setDeliveryTime(e.target.value)}
-                    className="w-full px-2.5 py-1.5 rounded-[10px] border border-[#EAE7F0] dark:border-[#2E2842] bg-[#F7F7FB] dark:bg-[#13101C] text-xs font-medium tabular-nums focus:outline-none focus:border-[#7656C9]"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <input
-                    type="text"
+                  <textarea
+                    id="order-custom-notes"
+                    rows={2}
                     value={orderNotes}
                     onChange={(e) => setOrderNotes(e.target.value)}
-                    placeholder="Cake message / customization notes..."
-                    className="w-full px-3 py-1.5 rounded-[10px] border border-[#EAE7F0] dark:border-[#2E2842] bg-[#F7F7FB] dark:bg-[#13101C] text-xs font-medium focus:outline-none focus:border-[#7656C9]"
+                    placeholder="Message on cake, eggless preference, icing flavor or theme notes..."
+                    className="w-full px-3 py-1.5 rounded-[10px] border border-[#EAE7F0] dark:border-[#2E2842] bg-[#F7F7FB] dark:bg-[#13101C] text-[13px] font-medium focus:outline-none focus:border-[#7656C9] resize-none"
                   />
                 </div>
               </div>
             )}
           </div>
 
-          {/* G. Customer Information */}
+          {/* Customer Details */}
           <div className="p-4 space-y-2.5">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-[#302A40] dark:text-[#E9E2FF]">
+              <span className="text-[13px] font-semibold text-[#302A40] dark:text-[#E9E2FF]">
                 Customer Details {billingMode === 'order' ? '(Required)' : '(Optional)'}
               </span>
-              {(customerName || customerPhone) && (
+              {(customerName || customerPhone || customerAddress) && (
                 <button
                   type="button"
                   onClick={clearCustomer}
@@ -832,7 +932,7 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <input
                 type="text"
                 value={customerName}
@@ -852,22 +952,36 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
               type="text"
               value={customerAddress}
               onChange={(e) => setCustomerAddress(e.target.value)}
-              placeholder="Customer Address (Optional)"
+              placeholder={
+                billingMode === 'order' && fulfillmentType === 'Delivery'
+                  ? 'Delivery Address *'
+                  : 'Customer Address (Optional)'
+              }
               className="w-full px-3 py-1.5 rounded-[10px] border border-[#EAE7F0] dark:border-[#2E2842] bg-white dark:bg-[#1B1726] text-xs font-medium focus:outline-none focus:border-[#7656C9]"
             />
           </div>
         </div>
 
-        {/* H. Prominent SAVE & PRINT Action */}
-        <div className="p-3.5 border-t border-[#EAE7F0] dark:border-[#2E2842] bg-white dark:bg-[#1B1726]">
+        {/* Sticky Footer: Clear Cart & SAVE & PRINT */}
+        <div className="p-3 sm:p-3.5 border-t border-[#EAE7F0] dark:border-[#2E2842] bg-white dark:bg-[#1B1726] flex items-center gap-2 sm:gap-2.5">
+          <button
+            type="button"
+            disabled={submitting || cart.length === 0}
+            onClick={handleClearCart}
+            className="px-3 sm:px-3.5 py-3 rounded-[12px] bg-[#E9E2FF] hover:bg-[#DDD3FF] disabled:opacity-45 disabled:cursor-not-allowed text-[#4B3194] dark:bg-[#2A233D] dark:text-[#E9E2FF] font-display text-[14px] font-semibold inline-flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Clear</span>
+          </button>
+
           <button
             type="button"
             disabled={submitting || cart.length === 0}
             onClick={handleSaveAndPrint}
-            className="w-full py-3 px-4 rounded-[12px] bg-[#7656C9] hover:bg-[#6947BB] disabled:bg-[#EAE7F0] dark:disabled:bg-[#2A233D] disabled:text-[#817A91] text-white font-display text-sm font-bold tracking-wide inline-flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(118,86,201,0.28)] transition-colors"
+            className="flex-1 min-w-0 py-3 px-3 sm:px-4 rounded-[12px] bg-[#7656C9] hover:bg-[#6947BB] disabled:bg-[#EAE7F0] dark:disabled:bg-[#2A233D] disabled:text-[#817A91] text-white font-display text-[14px] font-bold tracking-wide inline-flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(118,86,201,0.28)] transition-colors whitespace-nowrap"
           >
-            <Printer className="w-4 h-4" />
-            <span>{submitting ? 'SAVING TRANSACTION...' : 'SAVE & PRINT'}</span>
+            <Printer className="w-4 h-4 shrink-0" />
+            <span>{submitting ? 'SAVING...' : 'SAVE & PRINT'}</span>
           </button>
         </div>
       </aside>

@@ -9,6 +9,8 @@ import {
   Upload,
   Cake,
   Power,
+  AlertCircle,
+  RotateCcw,
 } from 'lucide-react';
 import { apiRequest } from '../lib/api';
 import { useSettings } from '../context/SettingsContext';
@@ -33,12 +35,12 @@ const PRODUCT_CATEGORIES: ProductCategory[] = [
 const MEASUREMENT_UNITS: MeasurementUnit[] = ['KG', 'Gram', 'Piece'];
 
 const PRESET_IMAGES = [
-  { label: 'Truffle Cake', url: '/src/assets/images/product_truffle_cake_1794586326747.jpg' },
-  { label: 'Red Velvet', url: '/src/assets/images/product_red_velvet_1794586327823.jpg' },
-  { label: 'Fruit Pastry', url: '/src/assets/images/product_fruit_pastry_1794586327935.jpg' },
-  { label: 'Cupcakes', url: '/src/assets/images/product_gourmet_cupcakes_1794586328314.jpg' },
-  { label: 'Chocolates', url: '/src/assets/images/product_chocolate_truffles_1794586329086.jpg' },
-  { label: 'Cookies', url: '/src/assets/images/product_bakery_cookies_1794586329016.jpg' },
+  { label: 'Truffle Cake', url: '/images/product_truffle_cake_1794586326747.jpg' },
+  { label: 'Red Velvet', url: '/images/product_red_velvet_1794586327823.jpg' },
+  { label: 'Fruit Pastry', url: '/images/product_fruit_pastry_1794586327935.jpg' },
+  { label: 'Cupcakes', url: '/images/product_gourmet_cupcakes_1794586328314.jpg' },
+  { label: 'Chocolates', url: '/images/product_chocolate_truffles_1794586329086.jpg' },
+  { label: 'Cookies', url: '/images/product_bakery_cookies_1794586329016.jpg' },
 ];
 
 export function ProductsPage() {
@@ -47,6 +49,7 @@ export function ProductsPage() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'All' | ProductCategory>('All');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Disabled' | 'Favorites'>('All');
@@ -71,11 +74,15 @@ export function ProductsPage() {
   const sym = settings.application.currencySymbol || '₹';
 
   const loadProducts = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
       const res = await apiRequest<Product[]>('/api/products');
       setProducts(res);
     } catch (err: any) {
-      showToast('Failed to load products', 'error', err?.message);
+      const msg = err?.message || 'Unable to load products.';
+      setLoadError(msg);
+      showToast('Failed to load products', 'error', msg);
     } finally {
       setLoading(false);
     }
@@ -84,6 +91,15 @@ export function ProductsPage() {
   useEffect(() => {
     loadProducts();
   }, [loadProducts]);
+
+  useEffect(() => {
+    if (!modalOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setModalOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [modalOpen]);
 
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -234,10 +250,10 @@ export function ProductsPage() {
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-xl font-bold text-[#302A40] dark:text-[#F3F1FA]">
+          <h1 className="font-display text-[22px] sm:text-[26px] leading-tight font-bold text-[#302A40] dark:text-[#F3F1FA]">
             Products &amp; Menu Catalog
           </h1>
-          <p className="text-xs font-medium text-[#817A91] mt-0.5">
+          <p className="text-[14px] font-normal text-[#817A91] mt-0.5">
             Add cakes, pastries, and bakery items with pricing, units, images, and favorites.
           </p>
         </div>
@@ -245,7 +261,7 @@ export function ProductsPage() {
         <button
           type="button"
           onClick={openAddModal}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold transition-colors whitespace-nowrap shrink-0"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-[14px] font-semibold transition-colors whitespace-nowrap shrink-0"
         >
           <Plus className="w-4 h-4" />
           <span>Add Product</span>
@@ -254,15 +270,15 @@ export function ProductsPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="relative">
+        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+          <div className="relative flex-1 min-w-[180px] sm:flex-none">
             <Search className="w-4 h-4 text-[#817A91] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search products..."
-              className="pl-9 pr-3 py-2 rounded-[10px] bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] text-xs font-medium w-56 focus:outline-none focus:border-[#7656C9]"
+              className="pl-9 pr-3 py-2 rounded-[10px] bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] text-xs font-medium w-full sm:w-56 focus:outline-none focus:border-[#7656C9]"
             />
           </div>
 
@@ -270,7 +286,7 @@ export function ProductsPage() {
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value as 'All' | ProductCategory)}
             aria-label="Filter by category"
-            className="px-3 py-2 rounded-[10px] bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] text-xs font-semibold focus:outline-none focus:border-[#7656C9]"
+            className="flex-1 min-w-[140px] sm:flex-none px-3 py-2 rounded-[10px] bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] text-xs font-semibold focus:outline-none focus:border-[#7656C9]"
           >
             <option value="All">All Categories</option>
             {PRODUCT_CATEGORIES.map((c) => (
@@ -281,13 +297,13 @@ export function ProductsPage() {
           </select>
         </div>
 
-        <div className="flex items-center gap-1 p-1 rounded-[12px] bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842]">
+        <div className="flex items-center gap-1 p-1 rounded-[12px] bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] overflow-x-auto thin-scrollbar max-w-full">
           {(['All', 'Active', 'Disabled', 'Favorites'] as const).map((st) => (
             <button
               key={st}
               type="button"
               onClick={() => setStatusFilter(st)}
-              className={`px-3 py-1 rounded-[8px] text-xs font-semibold transition-colors whitespace-nowrap ${
+              className={`px-3 py-1 rounded-[8px] text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
                 statusFilter === st
                   ? 'bg-[#7656C9] text-white'
                   : 'text-[#817A91] hover:text-[#302A40] dark:hover:text-white'
@@ -299,124 +315,220 @@ export function ProductsPage() {
         </div>
       </div>
 
-      {/* Products Table */}
+      {/* Products Table / Mobile Cards */}
       <div className="eb-card overflow-hidden">
         {loading ? (
-          <div className="p-8 space-y-3 animate-pulse">
+          <div className="p-6 sm:p-8 space-y-3 animate-pulse">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="h-14 rounded-[10px] bg-[#F7F7FB] dark:bg-[#13101C]" />
             ))}
           </div>
+        ) : loadError ? (
+          <div className="p-10 text-center space-y-3">
+            <AlertCircle className="w-9 h-9 mx-auto text-rose-500" />
+            <div>
+              <p className="text-sm font-semibold text-[#302A40] dark:text-[#F3F1FA]">
+                Unable to load products
+              </p>
+              <p className="text-xs font-medium text-[#817A91] mt-1">{loadError}</p>
+            </div>
+            <button
+              type="button"
+              onClick={loadProducts}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Retry</span>
+            </button>
+          </div>
         ) : filteredProducts.length === 0 ? (
-          <div className="p-12 text-center">
+          <div className="p-10 sm:p-12 text-center">
             <Cake className="w-9 h-9 mx-auto text-[#817A91]/50 mb-2" />
             <p className="text-sm font-semibold text-[#302A40] dark:text-[#F3F1FA]">
               No products found
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-[#F7F7FB] dark:bg-[#151220] text-xs font-semibold text-[#817A91] border-b border-[#EAE7F0] dark:border-[#2E2842]">
-                <tr>
-                  <th className="px-4 py-3">Product</th>
-                  <th className="px-4 py-3">Category</th>
-                  <th className="px-4 py-3">Unit</th>
-                  <th className="px-4 py-3 text-right">Price</th>
-                  <th className="px-4 py-3 text-center">Favorite</th>
-                  <th className="px-4 py-3 text-center">Status</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#EAE7F0] dark:divide-[#2E2842]">
-                {filteredProducts.map((product) => (
-                  <tr
-                    key={product.id}
-                    className={`hover:bg-[#F7F7FB]/80 dark:hover:bg-[#231E33] transition-colors ${
-                      !product.isActive ? 'opacity-60' : ''
-                    }`}
-                  >
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-10 rounded-[10px] overflow-hidden shrink-0 border border-[#EAE7F0] dark:border-[#2E2842]">
-                          <ProductImage src={product.image} alt={product.name} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-semibold text-[#302A40] dark:text-[#F3F1FA] truncate">
-                            {product.name}
-                          </p>
-                          {product.description && (
-                            <p className="text-xs font-medium text-[#817A91] truncate max-w-xs">
-                              {product.description}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-2.5 text-xs font-medium text-[#817A91] whitespace-nowrap">
-                      {product.category}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs font-semibold text-[#302A40] dark:text-[#E9E2FF] whitespace-nowrap">
-                      {product.unit}
-                    </td>
-                    <td className="px-4 py-2.5 text-right font-display text-xs font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums whitespace-nowrap">
-                      {formatMoneyExact(product.price, sym)}
-                    </td>
-                    <td className="px-4 py-2.5 text-center">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleFavorite(product)}
-                        aria-label="Toggle favorite"
-                        className="p-1.5 rounded-[10px] hover:bg-[#E9E2FF]/60"
-                      >
-                        <Star
-                          className={`w-4 h-4 ${
-                            product.isFavorite
-                              ? 'text-[#7656C9] fill-[#7656C9]'
-                              : 'text-[#817A91]'
-                          }`}
-                        />
-                      </button>
-                    </td>
-                    <td className="px-4 py-2.5 text-center whitespace-nowrap">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleActive(product)}
-                        className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-[10px] border transition-colors ${
-                          product.isActive
-                            ? 'border-[#EAE7F0] bg-[#E9E2FF] text-[#4B3194]'
-                            : 'border-[#EAE7F0] bg-[#F7F7FB] text-[#817A91]'
+          <>
+            {/* Mobile Product Cards */}
+            <div className="md:hidden divide-y divide-[#EAE7F0] dark:divide-[#2E2842]">
+              {filteredProducts.map((product) => (
+                <div
+                  key={product.id}
+                  className={`p-4 space-y-3 ${!product.isActive ? 'opacity-60' : ''}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-16 h-14 rounded-[10px] overflow-hidden shrink-0 border border-[#EAE7F0] dark:border-[#2E2842]">
+                      <ProductImage src={product.image} alt={product.name} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-sm text-[#302A40] dark:text-[#F3F1FA] truncate">
+                        {product.name}
+                      </p>
+                      <p className="text-xs font-medium text-[#817A91]">
+                        {product.category} · {product.unit}
+                      </p>
+                      <p className="mt-1 font-display text-sm font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums">
+                        {formatMoneyExact(product.price, sym)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleFavorite(product)}
+                      aria-label={`Toggle favorite for ${product.name}`}
+                      className="p-1.5 rounded-[10px] hover:bg-[#E9E2FF]/60 shrink-0"
+                    >
+                      <Star
+                        className={`w-4 h-4 ${
+                          product.isFavorite
+                            ? 'text-[#7656C9] fill-[#7656C9]'
+                            : 'text-[#817A91]'
                         }`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleActive(product)}
+                      className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-[10px] border transition-colors ${
+                        product.isActive
+                          ? 'border-[#EAE7F0] bg-[#E9E2FF] text-[#4B3194]'
+                          : 'border-[#EAE7F0] bg-[#F7F7FB] text-[#817A91]'
+                      }`}
+                    >
+                      <Power className="w-3 h-3" />
+                      <span>{product.isActive ? 'Active' : 'Disabled'}</span>
+                    </button>
+
+                    <div className="inline-flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(product)}
+                        className="p-1.5 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194]"
+                        aria-label={`Edit ${product.name}`}
                       >
-                        <Power className="w-3 h-3" />
-                        <span>{product.isActive ? 'Active' : 'Disabled'}</span>
+                        <Edit3 className="w-3.5 h-3.5" />
                       </button>
-                    </td>
-                    <td className="px-4 py-2.5 text-right whitespace-nowrap">
-                      <div className="inline-flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => openEditModal(product)}
-                          className="p-1.5 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194]"
-                          aria-label={`Edit ${product.name}`}
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteTarget(product)}
-                          className="p-1.5 rounded-[10px] border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50"
-                          aria-label={`Delete ${product.name}`}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget(product)}
+                        className="p-1.5 rounded-[10px] border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50"
+                        aria-label={`Delete ${product.name}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Products Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-[14px] text-left">
+                <thead className="bg-[#F7F7FB] dark:bg-[#151220] text-[13px] font-semibold text-[#817A91] border-b border-[#EAE7F0] dark:border-[#2E2842]">
+                  <tr>
+                    <th className="px-4 py-3">Product</th>
+                    <th className="px-4 py-3">Category</th>
+                    <th className="px-4 py-3">Unit</th>
+                    <th className="px-4 py-3 text-right">Price</th>
+                    <th className="px-4 py-3 text-center">Favorite</th>
+                    <th className="px-4 py-3 text-center">Status</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-[#EAE7F0] dark:divide-[#2E2842]">
+                  {filteredProducts.map((product) => (
+                    <tr
+                      key={product.id}
+                      className={`hover:bg-[#F7F7FB]/80 dark:hover:bg-[#231E33] transition-colors ${
+                        !product.isActive ? 'opacity-60' : ''
+                      }`}
+                    >
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-10 rounded-[10px] overflow-hidden shrink-0 border border-[#EAE7F0] dark:border-[#2E2842]">
+                            <ProductImage src={product.image} alt={product.name} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-[#302A40] dark:text-[#F3F1FA] truncate">
+                              {product.name}
+                            </p>
+                            {product.description && (
+                              <p className="text-xs font-medium text-[#817A91] truncate max-w-xs">
+                                {product.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 text-xs font-medium text-[#817A91] whitespace-nowrap">
+                        {product.category}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs font-semibold text-[#302A40] dark:text-[#E9E2FF] whitespace-nowrap">
+                        {product.unit}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-display text-xs font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums whitespace-nowrap">
+                        {formatMoneyExact(product.price, sym)}
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleFavorite(product)}
+                          aria-label="Toggle favorite"
+                          className="p-1.5 rounded-[10px] hover:bg-[#E9E2FF]/60"
+                        >
+                          <Star
+                            className={`w-4 h-4 ${
+                              product.isFavorite
+                                ? 'text-[#7656C9] fill-[#7656C9]'
+                                : 'text-[#817A91]'
+                            }`}
+                          />
+                        </button>
+                      </td>
+                      <td className="px-4 py-2.5 text-center whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleActive(product)}
+                          className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-[10px] border transition-colors ${
+                            product.isActive
+                              ? 'border-[#EAE7F0] bg-[#E9E2FF] text-[#4B3194]'
+                              : 'border-[#EAE7F0] bg-[#F7F7FB] text-[#817A91]'
+                          }`}
+                        >
+                          <Power className="w-3 h-3" />
+                          <span>{product.isActive ? 'Active' : 'Disabled'}</span>
+                        </button>
+                      </td>
+                      <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(product)}
+                            className="p-1.5 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194]"
+                            aria-label={`Edit ${product.name}`}
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTarget(product)}
+                            className="p-1.5 rounded-[10px] border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50"
+                            aria-label={`Delete ${product.name}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
@@ -453,7 +565,7 @@ export function ProductsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-semibold mb-1">Category</label>
                   <select
@@ -500,7 +612,7 @@ export function ProductsPage() {
 
               <div>
                 <label className="block text-xs font-semibold mb-1.5">Product Image</label>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                   <div className="w-20 h-16 rounded-[10px] overflow-hidden border border-[#EAE7F0] dark:border-[#2E2842] shrink-0">
                     <ProductImage src={form.image} alt={form.name || 'Preview'} />
                   </div>
@@ -546,7 +658,7 @@ export function ProductsPage() {
                 />
               </div>
 
-              <div className="flex items-center gap-6">
+              <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                 <label className="inline-flex items-center gap-2 text-xs font-semibold cursor-pointer">
                   <input
                     type="checkbox"
@@ -572,14 +684,14 @@ export function ProductsPage() {
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] text-xs font-semibold"
+                  className="px-4 py-2 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] text-[14px] font-semibold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold disabled:opacity-60"
+                  className="px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-[14px] font-semibold disabled:opacity-60"
                 >
                   {saving ? 'Saving...' : editing ? 'Update Product' : 'Save Product'}
                 </button>

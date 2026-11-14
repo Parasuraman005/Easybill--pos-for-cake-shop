@@ -10,6 +10,8 @@ import {
   ClipboardList,
   Receipt,
   X,
+  AlertCircle,
+  RotateCcw,
 } from 'lucide-react';
 import { apiRequest } from '../lib/api';
 import { useSettings } from '../context/SettingsContext';
@@ -33,17 +35,22 @@ export function DashboardPage({ onNavigate, onPrintReceipt }: DashboardPageProps
   const { showToast } = useToast();
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<CakeOrder | null>(null);
 
   const sym = settings.application.currencySymbol || '₹';
   const dateFmt = settings.application.dateFormat || 'DD-MM-YYYY';
 
   const loadDashboard = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
       const res = await apiRequest<DashboardSummary>('/api/dashboard');
       setData(res);
     } catch (err: any) {
-      showToast('Failed to load dashboard', 'error', err?.message);
+      const msg = err?.message || 'Unable to load dashboard summary.';
+      setLoadError(msg);
+      showToast('Failed to load dashboard', 'error', msg);
     } finally {
       setLoading(false);
     }
@@ -53,16 +60,47 @@ export function DashboardPage({ onNavigate, onPrintReceipt }: DashboardPageProps
     loadDashboard();
   }, [loadDashboard]);
 
+  useEffect(() => {
+    if (!selectedOrder) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedOrder(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedOrder]);
+
   if (loading) {
     return (
       <div className="space-y-6 animate-pulse">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
             <div key={i} className="h-28 eb-card" />
           ))}
         </div>
         <div className="h-48 eb-card" />
         <div className="h-64 eb-card" />
+      </div>
+    );
+  }
+
+  if (loadError && !data) {
+    return (
+      <div className="eb-card p-10 text-center space-y-3">
+        <AlertCircle className="w-9 h-9 mx-auto text-rose-500" />
+        <div>
+          <p className="font-display text-base font-bold text-[#302A40] dark:text-[#F3F1FA]">
+            Unable to load dashboard
+          </p>
+          <p className="text-xs font-medium text-[#817A91] mt-1">{loadError}</p>
+        </div>
+        <button
+          type="button"
+          onClick={loadDashboard}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold transition-colors"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          <span>Retry</span>
+        </button>
       </div>
     );
   }
@@ -81,17 +119,17 @@ export function DashboardPage({ onNavigate, onPrintReceipt }: DashboardPageProps
     <div className="space-y-6">
       {/* A. Business Summary Cards — 3 cards in 1 row */}
       <section aria-label="Business summary">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Card 1: Today's Total Sales */}
           <div className="eb-card p-5 flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold text-[#817A91] dark:text-[#A69FB8]">
+              <p className="text-[13px] font-semibold text-[#817A91] dark:text-[#A69FB8]">
                 Today&apos;s Total Sales
               </p>
-              <p className="mt-2 font-display text-2xl sm:text-3xl font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums">
+              <p className="mt-2 font-display text-[26px] sm:text-[28px] leading-tight font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums">
                 {formatCurrency(summary.todaySales, sym)}
               </p>
-              <p className="mt-1.5 text-xs font-medium text-[#817A91] dark:text-[#A69FB8] tabular-nums">
+              <p className="mt-1.5 text-[13px] font-medium text-[#817A91] dark:text-[#A69FB8] tabular-nums">
                 {summary.todayBillCount} {summary.todayBillCount === 1 ? 'bill' : 'bills'} generated today
               </p>
             </div>
@@ -103,13 +141,13 @@ export function DashboardPage({ onNavigate, onPrintReceipt }: DashboardPageProps
           {/* Card 2: Monthly Total Sales */}
           <div className="eb-card p-5 flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold text-[#817A91] dark:text-[#A69FB8]">
+              <p className="text-[13px] font-semibold text-[#817A91] dark:text-[#A69FB8]">
                 Monthly Total Sales
               </p>
-              <p className="mt-2 font-display text-2xl sm:text-3xl font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums">
+              <p className="mt-2 font-display text-[26px] sm:text-[28px] leading-tight font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums">
                 {formatCurrency(summary.monthlySales, sym)}
               </p>
-              <p className="mt-1.5 text-xs font-medium text-[#817A91] dark:text-[#A69FB8] tabular-nums">
+              <p className="mt-1.5 text-[13px] font-medium text-[#817A91] dark:text-[#A69FB8] tabular-nums">
                 {summary.monthlyBillCount} completed {summary.monthlyBillCount === 1 ? 'bill' : 'bills'} this month
               </p>
             </div>
@@ -121,13 +159,13 @@ export function DashboardPage({ onNavigate, onPrintReceipt }: DashboardPageProps
           {/* Card 3: Monthly Total Expenses */}
           <div className="eb-card p-5 flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold text-[#817A91] dark:text-[#A69FB8]">
+              <p className="text-[13px] font-semibold text-[#817A91] dark:text-[#A69FB8]">
                 Monthly Total Expenses
               </p>
-              <p className="mt-2 font-display text-2xl sm:text-3xl font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums">
+              <p className="mt-2 font-display text-[26px] sm:text-[28px] leading-tight font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums">
                 {formatCurrency(summary.monthlyExpenses, sym)}
               </p>
-              <p className="mt-1.5 text-xs font-medium text-[#817A91] dark:text-[#A69FB8]">
+              <p className="mt-1.5 text-[13px] font-medium text-[#817A91] dark:text-[#A69FB8]">
                 Recorded for current month
               </p>
             </div>
@@ -142,20 +180,20 @@ export function DashboardPage({ onNavigate, onPrintReceipt }: DashboardPageProps
       <section aria-label="Pending orders">
         <div className="flex items-center justify-between gap-3 mb-3">
           <div className="flex items-center gap-2">
-            <h2 className="font-display text-base font-semibold text-[#302A40] dark:text-[#F3F1FA]">
+            <h2 className="font-display text-[17px] sm:text-[19px] font-semibold text-[#302A40] dark:text-[#F3F1FA]">
               Pending Orders
             </h2>
-            <span className="text-xs font-medium text-[#817A91] dark:text-[#A69FB8] tabular-nums">
+            <span className="text-[13px] font-medium text-[#817A91] dark:text-[#A69FB8] tabular-nums">
               · {summary.pendingOrders.length} active
             </span>
           </div>
           <button
             type="button"
             onClick={() => onNavigate('orders')}
-            className="inline-flex items-center gap-1 text-xs font-semibold text-[#7656C9] hover:text-[#6947BB] dark:text-[#C5B3F7] whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1 text-[14px] font-semibold text-[#7656C9] hover:text-[#6947BB] dark:text-[#C5B3F7] whitespace-nowrap shrink-0"
           >
             <span>Manage Orders</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <ArrowRight className="w-4 h-4" />
           </button>
         </div>
 
@@ -183,7 +221,7 @@ export function DashboardPage({ onNavigate, onPrintReceipt }: DashboardPageProps
                     setSelectedOrder(order);
                   }
                 }}
-                className="w-[300px] sm:w-[320px] shrink-0 text-left eb-card p-4 hover:border-[#7656C9] hover:shadow-[0_6px_18px_rgba(118,86,201,0.1)] transition-all cursor-pointer flex flex-col justify-between gap-3"
+                className="w-[260px] min-[390px]:w-[300px] sm:w-[320px] shrink-0 text-left eb-card p-4 hover:border-[#7656C9] hover:shadow-[0_6px_18px_rgba(118,86,201,0.1)] transition-all cursor-pointer flex flex-col justify-between gap-3"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2">
@@ -214,7 +252,7 @@ export function DashboardPage({ onNavigate, onPrintReceipt }: DashboardPageProps
                     <div className="flex justify-between text-[#302A40] dark:text-[#E9E2FF]">
                       <span className="inline-flex items-center gap-1 text-[#817A91]">
                         <Clock className="w-3.5 h-3.5 text-[#7656C9]" />
-                        Delivery
+                        {order.fulfillmentType || 'Pickup'}
                       </span>
                       <span className="font-semibold">
                         {formatDateValue(order.deliveryDate, dateFmt)} · {order.deliveryTime}
@@ -254,14 +292,14 @@ export function DashboardPage({ onNavigate, onPrintReceipt }: DashboardPageProps
           <div className="px-5 py-4 border-b border-[#EAE7F0] dark:border-[#2E2842] flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Receipt className="w-4 h-4 text-[#7656C9]" />
-              <h2 className="font-display text-base font-semibold text-[#302A40] dark:text-[#F3F1FA]">
+              <h2 className="font-display text-[17px] sm:text-[19px] font-semibold text-[#302A40] dark:text-[#F3F1FA]">
                 Recent Bills
               </h2>
             </div>
             <button
               type="button"
               onClick={() => onNavigate('sales')}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] dark:bg-[#2A233D] dark:text-[#E9E2FF] text-xs font-semibold transition-colors whitespace-nowrap shrink-0"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] dark:bg-[#2A233D] dark:text-[#E9E2FF] text-[14px] font-semibold transition-colors whitespace-nowrap shrink-0"
             >
               <span>View All</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -269,58 +307,96 @@ export function DashboardPage({ onNavigate, onPrintReceipt }: DashboardPageProps
           </div>
 
           {summary.recentBills.length === 0 ? (
-            <div className="p-8 text-center text-sm font-medium text-[#817A91]">
+            <div className="p-8 text-center text-[14px] font-medium text-[#817A91]">
               No bills recorded yet.
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-[#F7F7FB] dark:bg-[#151220] text-xs font-semibold text-[#817A91] border-b border-[#EAE7F0] dark:border-[#2E2842]">
-                  <tr>
-                    <th className="px-5 py-3">Bill Number</th>
-                    <th className="px-5 py-3">Customer Name</th>
-                    <th className="px-5 py-3 text-right">Amount</th>
-                    <th className="px-5 py-3">Payment Mode</th>
-                    <th className="px-5 py-3">User Name</th>
-                    <th className="px-5 py-3 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#EAE7F0] dark:divide-[#2E2842]">
-                  {summary.recentBills.map((bill: Bill) => (
-                    <tr
-                      key={bill.id}
-                      className="hover:bg-[#F7F7FB]/80 dark:hover:bg-[#231E33] transition-colors"
-                    >
-                      <td className="px-5 py-3 text-xs font-semibold text-[#7656C9] dark:text-[#C5B3F7] tabular-nums whitespace-nowrap">
-                        {bill.billNumber}
-                      </td>
-                      <td className="px-5 py-3 text-[#302A40] dark:text-[#F3F1FA] font-medium">
+            <>
+              {/* Mobile Recent Bills Card List */}
+              <div className="md:hidden divide-y divide-[#EAE7F0] dark:divide-[#2E2842]">
+                {summary.recentBills.map((bill: Bill) => (
+                  <div key={bill.id} className="p-4 flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      <div className="flex items-center gap-2 text-[13px] tabular-nums">
+                        <span className="font-bold text-[#7656C9] dark:text-[#C5B3F7]">
+                          {bill.billNumber}
+                        </span>
+                        <span className="text-[#817A91]">· {bill.paymentMode}</span>
+                      </div>
+                      <p className="text-[14px] font-semibold text-[#302A40] dark:text-[#F3F1FA] truncate">
                         {bill.customerName || 'Walk-in Customer'}
-                      </td>
-                      <td className="px-5 py-3 text-right font-display font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums whitespace-nowrap">
+                      </p>
+                      <p className="text-[13px] font-normal text-[#817A91]">
+                        Cashier: {bill.username}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0 space-y-1.5">
+                      <p className="font-display text-[14px] font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums">
                         {formatMoneyExact(bill.grandTotal, sym)}
-                      </td>
-                      <td className="px-5 py-3 text-xs font-medium text-[#817A91] dark:text-[#D9CEFF] whitespace-nowrap">
-                        {bill.paymentMode}
-                      </td>
-                      <td className="px-5 py-3 text-xs font-medium text-[#817A91] whitespace-nowrap">
-                        {bill.username}
-                      </td>
-                      <td className="px-5 py-3 text-right whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => onPrintReceipt(billToReceipt(bill), true)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] dark:bg-[#2A233D] dark:text-[#E9E2FF] text-xs font-semibold transition-colors"
-                        >
-                          <Printer className="w-3.5 h-3.5" />
-                          <span>Print</span>
-                        </button>
-                      </td>
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => onPrintReceipt(billToReceipt(bill), true)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[8px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] dark:bg-[#2A233D] dark:text-[#E9E2FF] text-[13px] font-semibold transition-colors"
+                      >
+                        <Printer className="w-3 h-3" />
+                        <span>Print</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Recent Bills Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-[14px] text-left">
+                  <thead className="bg-[#F7F7FB] dark:bg-[#151220] text-[13px] font-semibold text-[#817A91] border-b border-[#EAE7F0] dark:border-[#2E2842]">
+                    <tr>
+                      <th className="px-5 py-3">Bill Number</th>
+                      <th className="px-5 py-3">Customer Name</th>
+                      <th className="px-5 py-3 text-right">Amount</th>
+                      <th className="px-5 py-3">Payment Mode</th>
+                      <th className="px-5 py-3">User Name</th>
+                      <th className="px-5 py-3 text-right">Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-[#EAE7F0] dark:divide-[#2E2842]">
+                    {summary.recentBills.map((bill: Bill) => (
+                      <tr
+                        key={bill.id}
+                        className="hover:bg-[#F7F7FB]/80 dark:hover:bg-[#231E33] transition-colors"
+                      >
+                        <td className="px-5 py-3 text-xs font-semibold text-[#7656C9] dark:text-[#C5B3F7] tabular-nums whitespace-nowrap">
+                          {bill.billNumber}
+                        </td>
+                        <td className="px-5 py-3 text-[#302A40] dark:text-[#F3F1FA] font-medium">
+                          {bill.customerName || 'Walk-in Customer'}
+                        </td>
+                        <td className="px-5 py-3 text-right font-display font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums whitespace-nowrap">
+                          {formatMoneyExact(bill.grandTotal, sym)}
+                        </td>
+                        <td className="px-5 py-3 text-xs font-medium text-[#817A91] dark:text-[#D9CEFF] whitespace-nowrap">
+                          {bill.paymentMode}
+                        </td>
+                        <td className="px-5 py-3 text-xs font-medium text-[#817A91] whitespace-nowrap">
+                          {bill.username}
+                        </td>
+                        <td className="px-5 py-3 text-right whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => onPrintReceipt(billToReceipt(bill), true)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] dark:bg-[#2A233D] dark:text-[#E9E2FF] text-xs font-semibold transition-colors"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            <span>Print</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </section>
@@ -353,8 +429,8 @@ export function DashboardPage({ onNavigate, onPrintReceipt }: DashboardPageProps
               </button>
             </div>
 
-            <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
-              <div className="grid grid-cols-2 gap-3 text-xs bg-[#F7F7FB] dark:bg-[#13101C] p-3.5 rounded-[12px] border border-[#EAE7F0] dark:border-[#2E2842] tabular-nums">
+            <div className="p-4 sm:p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-[#F7F7FB] dark:bg-[#13101C] p-3.5 rounded-[12px] border border-[#EAE7F0] dark:border-[#2E2842] tabular-nums">
                 <div>
                   <span className="font-semibold text-[#817A91]">Phone</span>
                   <p className="font-semibold text-[#302A40] dark:text-[#F3F1FA] mt-0.5">
@@ -362,13 +438,15 @@ export function DashboardPage({ onNavigate, onPrintReceipt }: DashboardPageProps
                   </p>
                 </div>
                 <div>
-                  <span className="font-semibold text-[#817A91]">Expected Delivery</span>
+                  <span className="font-semibold text-[#817A91]">
+                    Expected {selectedOrder.fulfillmentType || 'Pickup'}
+                  </span>
                   <p className="font-semibold text-[#302A40] dark:text-[#F3F1FA] mt-0.5">
                     {formatDateValue(selectedOrder.deliveryDate, dateFmt)} · {selectedOrder.deliveryTime}
                   </p>
                 </div>
                 {selectedOrder.customerAddress && (
-                  <div className="col-span-2">
+                  <div className="sm:col-span-2">
                     <span className="font-semibold text-[#817A91]">Address</span>
                     <p className="font-medium text-[#302A40] dark:text-[#F3F1FA] mt-0.5">
                       {selectedOrder.customerAddress}
@@ -423,14 +501,14 @@ export function DashboardPage({ onNavigate, onPrintReceipt }: DashboardPageProps
               </div>
             </div>
 
-            <div className="px-5 py-3.5 border-t border-[#EAE7F0] dark:border-[#2E2842] bg-[#F7F7FB] dark:bg-[#151220] flex items-center justify-between gap-2">
+            <div className="px-4 sm:px-5 py-3.5 border-t border-[#EAE7F0] dark:border-[#2E2842] bg-[#F7F7FB] dark:bg-[#151220] flex flex-wrap items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={() => {
                   setSelectedOrder(null);
                   onNavigate('orders');
                 }}
-                className="px-4 py-2 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] text-xs font-semibold transition-colors"
+                className="px-4 py-2 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] text-[14px] font-semibold transition-colors"
               >
                 Open in Orders
               </button>
@@ -441,10 +519,10 @@ export function DashboardPage({ onNavigate, onPrintReceipt }: DashboardPageProps
                   setSelectedOrder(null);
                   onPrintReceipt(orderToReceipt(ord), true);
                 }}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-[14px] font-semibold transition-colors"
               >
                 <Printer className="w-4 h-4" />
-                <span>Print Order Receipt</span>
+                <span>Print Receipt</span>
               </button>
             </div>
           </div>

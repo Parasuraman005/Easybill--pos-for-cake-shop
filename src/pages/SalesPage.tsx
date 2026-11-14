@@ -61,10 +61,10 @@ function DatePickerField({ id, label, value, hasError, onChange }: DatePickerFie
   };
 
   return (
-    <div className="flex flex-col gap-1 min-w-[160px]">
+    <div className="flex flex-col gap-1 flex-1 min-w-[130px] sm:flex-none sm:min-w-[160px]">
       <label
         htmlFor={id}
-        className="text-xs font-semibold text-[#817A91] dark:text-[#A69FB8] px-0.5"
+        className="text-[13px] font-semibold text-[#817A91] dark:text-[#A69FB8] px-0.5"
       >
         {label}
       </label>
@@ -235,6 +235,20 @@ export function SalesPage({ onPrintReceipt }: SalesPageProps) {
     return filteredTransactions.slice(start, start + PAGE_SIZE);
   }, [filteredTransactions, safePage]);
 
+  const paginationItems = useMemo(() => {
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    const items: (number | 'ellipsis-left' | 'ellipsis-right')[] = [1];
+    if (safePage > 3) items.push('ellipsis-left');
+    const start = Math.max(2, safePage - 1);
+    const end = Math.min(totalPages - 1, safePage + 1);
+    for (let p = start; p <= end; p++) items.push(p);
+    if (safePage < totalPages - 2) items.push('ellipsis-right');
+    items.push(totalPages);
+    return items;
+  }, [totalPages, safePage]);
+
   const handleToggleExpand = (txId: string) => {
     setExpandedTxId((prev) => (prev === txId ? null : txId));
   };
@@ -278,10 +292,10 @@ export function SalesPage({ onPrintReceipt }: SalesPageProps) {
       {/* Page Title */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h1 className="font-display text-2xl font-bold text-[#302A40] dark:text-[#F3F1FA]">
+          <h1 className="font-display text-[22px] sm:text-[26px] leading-tight font-bold text-[#302A40] dark:text-[#F3F1FA]">
             Sales History
           </h1>
-          <p className="text-xs font-medium text-[#817A91] mt-0.5">
+          <p className="text-[14px] font-normal text-[#817A91] mt-0.5">
             Track walk-in bills and cake orders, inspect itemized receipts, print duplicates, and export A4 PDF reports.
           </p>
         </div>
@@ -295,10 +309,10 @@ export function SalesPage({ onPrintReceipt }: SalesPageProps) {
               <BarChart3 className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-[#817A91] dark:text-[#A69FB8]">
+              <p className="text-[13px] font-semibold text-[#817A91] dark:text-[#A69FB8]">
                 Total Sales for Selected Period
               </p>
-              <p className="mt-1 font-display text-3xl sm:text-4xl font-bold tabular-nums text-[#302A40] dark:text-[#F3F1FA]">
+              <p className="mt-1 font-display text-[26px] sm:text-[28px] leading-tight font-bold tabular-nums text-[#302A40] dark:text-[#F3F1FA]">
                 {formatMoneyExact(summary.totalSales, sym)}
               </p>
             </div>
@@ -349,7 +363,7 @@ export function SalesPage({ onPrintReceipt }: SalesPageProps) {
           <div className="flex-1 flex flex-col gap-1">
             <label
               htmlFor="sales-search-input"
-              className="text-xs font-semibold text-[#817A91] dark:text-[#A69FB8] px-0.5"
+              className="text-[13px] font-semibold text-[#817A91] dark:text-[#A69FB8] px-0.5"
             >
               Search Transactions
             </label>
@@ -472,9 +486,186 @@ export function SalesPage({ onPrintReceipt }: SalesPageProps) {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left border-collapse">
-                <thead className="bg-[#E9E2FF]/55 dark:bg-[#231C38] text-xs font-semibold text-[#302A40] dark:text-[#E9E2FF] border-b border-[#EAE7F0] dark:border-[#2E2842]">
+            {/* Mobile Sales Card List */}
+            <div className="md:hidden divide-y divide-[#EAE7F0] dark:divide-[#2E2842]">
+              {paginatedTransactions.map((tx, idx) => {
+                const serialNumber = (safePage - 1) * PAGE_SIZE + idx + 1;
+                const isExpanded = expandedTxId === tx.id;
+                const txDate = formatDateValue(tx.createdAt, 'DD-MM-YYYY');
+                const txTime = formatTimeValue(tx.createdAt);
+
+                return (
+                  <div
+                    key={tx.id}
+                    className={`p-4 space-y-2.5 ${
+                      isExpanded ? 'bg-[#F7F7FB] dark:bg-[#151220]' : ''
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5 text-xs tabular-nums">
+                          <span className="text-[#817A91] font-semibold">#{serialNumber}</span>
+                          <span className="font-bold text-[#7656C9] dark:text-[#C5B3F7]">
+                            {tx.billNumber}
+                          </span>
+                          {tx.orderNumber && (
+                            <span className="font-semibold text-[#302A40] dark:text-[#E9E2FF]">
+                              · {tx.orderNumber}
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-0.5 text-sm font-semibold text-[#302A40] dark:text-[#F3F1FA] truncate">
+                          {tx.customerName || 'Walk-in Customer'}
+                        </p>
+                        <p className="text-[11px] font-medium text-[#817A91] tabular-nums">
+                          {txDate} · {txTime}
+                          {tx.customerPhone ? ` · ${tx.customerPhone}` : ''}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-display text-sm font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums">
+                          {formatMoneyExact(tx.grandTotal, sym)}
+                        </p>
+                        <p className="text-[11px] font-semibold text-[#817A91]">
+                          {tx.paymentMode}
+                        </p>
+                        {tx.balanceAmount > 0 && (
+                          <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 tabular-nums">
+                            Bal: {formatMoneyExact(tx.balanceAmount, sym)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => onPrintReceipt(salesTxToReceipt(tx), true)}
+                        aria-label={`Print receipt for ${tx.billNumber}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] dark:bg-[#2A233D] dark:text-[#E9E2FF] text-xs font-semibold transition-colors"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        <span>Print</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleExpand(tx.id)}
+                        aria-expanded={isExpanded}
+                        aria-label={`${isExpanded ? 'Close' : 'View'} details for ${tx.billNumber}`}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-xs font-semibold transition-colors ${
+                          isExpanded
+                            ? 'bg-[#7656C9] text-white'
+                            : 'bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] dark:bg-[#2A233D] dark:text-[#E9E2FF]'
+                        }`}
+                      >
+                        {isExpanded ? <X className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        <span>{isExpanded ? 'Close' : 'View'}</span>
+                      </button>
+                    </div>
+
+                    <AnimatePresence initial={false}>
+                      {isExpanded && (
+                        <motion.div
+                          key={`mobile-details-${tx.id}`}
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                          className="overflow-hidden pt-2"
+                        >
+                          <div className="space-y-3 rounded-[12px] bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] p-3 text-xs tabular-nums">
+                            <div className="flex flex-wrap gap-x-3 gap-y-1 text-[#817A91]">
+                              <span>
+                                Type:{' '}
+                                <strong className="text-[#302A40] dark:text-[#F3F1FA]">
+                                  {tx.type === 'order' ? 'Cake Order' : 'Walk-in Bill'}
+                                </strong>
+                              </span>
+                              <span>
+                                Cashier:{' '}
+                                <strong className="text-[#302A40] dark:text-[#F3F1FA]">
+                                  {tx.username}
+                                </strong>
+                              </span>
+                              {tx.orderStatus && (
+                                <span>
+                                  Status:{' '}
+                                  <strong className="text-[#7656C9] dark:text-[#C5B3F7]">
+                                    {tx.orderStatus}
+                                  </strong>
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="divide-y divide-[#EAE7F0] dark:divide-[#2E2842] border-t border-b border-[#EAE7F0] dark:border-[#2E2842]">
+                              {tx.items.map((item, itemIdx) => (
+                                <div key={`${item.productId}-${itemIdx}`} className="py-2 flex justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <p className="font-semibold text-[#302A40] dark:text-[#F3F1FA] truncate">
+                                      {item.productName}
+                                    </p>
+                                    <p className="text-[11px] text-[#817A91]">
+                                      {formatQty(item.quantity, item.unit)} × {formatMoneyExact(item.unitPrice, sym)}
+                                    </p>
+                                  </div>
+                                  <span className="font-semibold text-[#302A40] dark:text-[#F3F1FA] shrink-0">
+                                    {formatMoneyExact(item.subtotal, sym)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+
+                            <div className="space-y-1">
+                              <div className="flex justify-between">
+                                <span className="text-[#817A91]">Subtotal</span>
+                                <span>{formatMoneyExact(tx.subtotal, sym)}</span>
+                              </div>
+                              {(tx.discountAmount > 0 || tx.discountPercent > 0) && (
+                                <div className="flex justify-between text-emerald-700 dark:text-emerald-400">
+                                  <span>Discount ({tx.discountPercent}%)</span>
+                                  <span>-{formatMoneyExact(tx.discountAmount, sym)}</span>
+                                </div>
+                              )}
+                              {(tx.taxAmount > 0 || tx.taxRate > 0) && (
+                                <div className="flex justify-between">
+                                  <span className="text-[#817A91]">GST ({tx.taxRate}%)</span>
+                                  <span>{formatMoneyExact(tx.taxAmount, sym)}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between font-display font-bold text-sm pt-1 border-t border-[#EAE7F0] dark:border-[#2E2842]">
+                                <span>Grand Total</span>
+                                <span className="text-[#7656C9] dark:text-[#C5B3F7]">
+                                  {formatMoneyExact(tx.grandTotal, sym)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-[#817A91]">Received</span>
+                                <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                                  {formatMoneyExact(tx.amountReceived, sym)}
+                                </span>
+                              </div>
+                              {tx.type === 'order' && (
+                                <div className="flex justify-between font-semibold">
+                                  <span className="text-[#817A91]">Balance</span>
+                                  <span className={tx.balanceAmount > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}>
+                                    {formatMoneyExact(tx.balanceAmount, sym)}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Sales Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-[14px] text-left border-collapse">
+                <thead className="bg-[#E9E2FF]/55 dark:bg-[#231C38] text-[13px] font-semibold text-[#302A40] dark:text-[#E9E2FF] border-b border-[#EAE7F0] dark:border-[#2E2842]">
                   <tr>
                     <th className="px-4 py-3.5 w-16 text-center whitespace-nowrap">S.No</th>
                     <th className="px-4 py-3.5 whitespace-nowrap">Bill / Order Number</th>
@@ -819,7 +1010,7 @@ export function SalesPage({ onPrintReceipt }: SalesPageProps) {
                   transactions
                 </p>
 
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                   <button
                     type="button"
                     disabled={safePage <= 1}
@@ -833,23 +1024,32 @@ export function SalesPage({ onPrintReceipt }: SalesPageProps) {
                     <span>Prev</span>
                   </button>
 
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-                    <button
-                      key={pageNum}
-                      type="button"
-                      onClick={() => {
-                        setCurrentPage(pageNum);
-                        setExpandedTxId(null);
-                      }}
-                      className={`w-8 h-8 rounded-[10px] text-xs font-semibold tabular-nums transition-colors ${
-                        safePage === pageNum
-                          ? 'bg-[#7656C9] text-white'
-                          : 'bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] text-[#817A91] hover:text-[#302A40] dark:hover:text-white'
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  ))}
+                  {paginationItems.map((item) =>
+                    typeof item === 'number' ? (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => {
+                          setCurrentPage(item);
+                          setExpandedTxId(null);
+                        }}
+                        className={`w-8 h-8 rounded-[10px] text-xs font-semibold tabular-nums transition-colors ${
+                          safePage === item
+                            ? 'bg-[#7656C9] text-white'
+                            : 'bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] text-[#817A91] hover:text-[#302A40] dark:hover:text-white'
+                        }`}
+                      >
+                        {item}
+                      </button>
+                    ) : (
+                      <span
+                        key={item}
+                        className="px-1 text-xs font-semibold text-[#817A91] select-none"
+                      >
+                        …
+                      </span>
+                    )
+                  )}
 
                   <button
                     type="button"
@@ -884,7 +1084,7 @@ export function SalesPage({ onPrintReceipt }: SalesPageProps) {
           type="button"
           onClick={handleExportPdf}
           disabled={exportingPdf || loading || Boolean(dateError)}
-          className="inline-flex items-center justify-center gap-2.5 px-6 py-3 rounded-[12px] bg-[#7656C9] hover:bg-[#6947BB] disabled:opacity-50 disabled:cursor-not-allowed text-white font-display text-sm font-bold tracking-wide shadow-[0_4px_14px_rgba(118,86,201,0.28)] transition-colors whitespace-nowrap shrink-0 w-full sm:w-auto"
+          className="inline-flex items-center justify-center gap-2.5 px-6 py-3 rounded-[12px] bg-[#7656C9] hover:bg-[#6947BB] disabled:opacity-50 disabled:cursor-not-allowed text-white font-display text-[14px] font-bold tracking-wide shadow-[0_4px_14px_rgba(118,86,201,0.28)] transition-colors whitespace-nowrap shrink-0 w-full sm:w-auto"
         >
           {exportingPdf ? (
             <Loader2 className="w-4 h-4 animate-spin" />

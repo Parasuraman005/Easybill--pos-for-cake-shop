@@ -56,7 +56,7 @@ export function ConfirmDialog({
             </div>
             <h3
               id="confirm-dialog-title"
-              className="font-display text-base font-semibold text-[#302A40] dark:text-[#F3F1FA]"
+              className="font-display text-[19px] font-semibold text-[#302A40] dark:text-[#F3F1FA]"
             >
               {title}
             </h3>

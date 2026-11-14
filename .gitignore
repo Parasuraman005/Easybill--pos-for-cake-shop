@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+bun.lock
+easybill.db-shm
+easybill.db-wal

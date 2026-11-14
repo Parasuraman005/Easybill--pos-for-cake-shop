@@ -8,6 +8,8 @@ import {
   X,
   ClipboardList,
   Calendar,
+  AlertCircle,
+  RotateCcw,
 } from 'lucide-react';
 import { apiRequest } from '../lib/api';
 import { useSettings } from '../context/SettingsContext';
@@ -18,7 +20,7 @@ import {
   formatMoneyExact,
   orderToReceipt,
 } from '../lib/format';
-import type { CakeOrder, OrderStatus, ReceiptData } from '../types';
+import type { CakeOrder, FulfillmentType, OrderStatus, ReceiptData } from '../types';
 
 interface OrdersPageProps {
   onPrintReceipt: (receipt: ReceiptData, autoPrint?: boolean) => void;
@@ -41,11 +43,11 @@ function getStatusColor(status: OrderStatus): string {
       return 'text-[#7656C9] dark:text-[#C5B3F7]';
     case 'Preparing':
     case 'Confirmed':
-      return 'text-[#5B3FA8] dark:text-[#D9CEFF]';
+      return 'text-blue-700 dark:text-blue-400';
     case 'Cancelled':
       return 'text-red-600 dark:text-red-400';
     default:
-      return 'text-[#817A91] dark:text-[#A69FB8]';
+      return 'text-amber-700 dark:text-amber-400';
   }
 }
 
@@ -55,6 +57,7 @@ export function OrdersPage({ onPrintReceipt }: OrdersPageProps) {
 
   const [orders, setOrders] = useState<CakeOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | OrderStatus>('All');
   const [dateFilter, setDateFilter] = useState('');
@@ -64,6 +67,7 @@ export function OrdersPage({ onPrintReceipt }: OrdersPageProps) {
     customerName: '',
     customerPhone: '',
     customerAddress: '',
+    fulfillmentType: 'Pickup' as FulfillmentType,
     deliveryDate: '',
     deliveryTime: '',
     status: 'Pending' as OrderStatus,
@@ -84,11 +88,15 @@ export function OrdersPage({ onPrintReceipt }: OrdersPageProps) {
   const dateFmt = settings.application.dateFormat || 'DD-MM-YYYY';
 
   const loadOrders = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
       const res = await apiRequest<CakeOrder[]>('/api/orders');
       setOrders(res);
     } catch (err: any) {
-      showToast('Failed to load orders', 'error', err?.message);
+      const msg = err?.message || 'Unable to load orders.';
+      setLoadError(msg);
+      showToast('Failed to load orders', 'error', msg);
     } finally {
       setLoading(false);
     }
@@ -97,6 +105,18 @@ export function OrdersPage({ onPrintReceipt }: OrdersPageProps) {
   useEffect(() => {
     loadOrders();
   }, [loadOrders]);
+
+  useEffect(() => {
+    if (!editingOrder && !paymentOrder) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (paymentOrder) setPaymentOrder(null);
+        else if (editingOrder) setEditingOrder(null);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [editingOrder, paymentOrder]);
 
   const filteredOrders = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -118,6 +138,7 @@ export function OrdersPage({ onPrintReceipt }: OrdersPageProps) {
       customerName: order.customerName,
       customerPhone: order.customerPhone,
       customerAddress: order.customerAddress,
+      fulfillmentType: order.fulfillmentType || 'Pickup',
       deliveryDate: order.deliveryDate,
       deliveryTime: order.deliveryTime,
       status: order.status,
@@ -206,34 +227,34 @@ export function OrdersPage({ onPrintReceipt }: OrdersPageProps) {
       {/* Header & Filter Toolbar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-xl font-bold text-[#302A40] dark:text-[#F3F1FA]">
+          <h1 className="font-display text-[22px] sm:text-[26px] leading-tight font-bold text-[#302A40] dark:text-[#F3F1FA]">
             Cake Orders
           </h1>
-          <p className="text-xs font-medium text-[#817A91] mt-0.5">
+          <p className="text-[14px] font-normal text-[#817A91] mt-0.5">
             Track custom cake bookings, delivery schedules, advance payments, and balances.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="relative">
+        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+          <div className="relative flex-1 min-w-[200px] sm:flex-none">
             <Search className="w-4 h-4 text-[#817A91] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search order ID or customer..."
-              className="pl-9 pr-3 py-2 rounded-[10px] bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] text-xs font-medium w-56 focus:outline-none focus:border-[#7656C9]"
+              className="pl-9 pr-3 py-2 rounded-[10px] bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] text-xs font-medium w-full sm:w-56 focus:outline-none focus:border-[#7656C9]"
             />
           </div>
 
-          <div className="relative">
+          <div className="relative flex-1 min-w-[145px] sm:flex-none">
             <Calendar className="w-3.5 h-3.5 text-[#817A91] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="date"
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
               aria-label="Filter by delivery date"
-              className="pl-8 pr-2.5 py-2 rounded-[10px] bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] text-xs font-medium tabular-nums focus:outline-none focus:border-[#7656C9]"
+              className="w-full sm:w-auto pl-8 pr-2.5 py-2 rounded-[10px] bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] text-xs font-medium tabular-nums focus:outline-none focus:border-[#7656C9]"
             />
           </div>
 
@@ -241,7 +262,7 @@ export function OrdersPage({ onPrintReceipt }: OrdersPageProps) {
             <button
               type="button"
               onClick={() => setDateFilter('')}
-              className="px-3 py-2 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] text-xs font-semibold"
+              className="px-3 py-2 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] text-xs font-semibold whitespace-nowrap"
             >
               Clear Date
             </button>
@@ -267,16 +288,34 @@ export function OrdersPage({ onPrintReceipt }: OrdersPageProps) {
         ))}
       </div>
 
-      {/* Orders Table */}
+      {/* Orders Table / Mobile Cards */}
       <div className="eb-card overflow-hidden">
         {loading ? (
-          <div className="p-8 space-y-3 animate-pulse">
+          <div className="p-6 sm:p-8 space-y-3 animate-pulse">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="h-12 rounded-[10px] bg-[#F7F7FB] dark:bg-[#13101C]" />
             ))}
           </div>
+        ) : loadError ? (
+          <div className="p-10 text-center space-y-3">
+            <AlertCircle className="w-9 h-9 mx-auto text-rose-500" />
+            <div>
+              <p className="text-sm font-semibold text-[#302A40] dark:text-[#F3F1FA]">
+                Unable to load cake orders
+              </p>
+              <p className="text-xs font-medium text-[#817A91] mt-1">{loadError}</p>
+            </div>
+            <button
+              type="button"
+              onClick={loadOrders}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Retry</span>
+            </button>
+          </div>
         ) : filteredOrders.length === 0 ? (
-          <div className="p-12 text-center">
+          <div className="p-10 sm:p-12 text-center">
             <ClipboardList className="w-9 h-9 mx-auto text-[#817A91]/50 mb-2" />
             <p className="text-sm font-semibold text-[#302A40] dark:text-[#F3F1FA]">
               No matching cake orders
@@ -286,103 +325,203 @@ export function OrdersPage({ onPrintReceipt }: OrdersPageProps) {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-[#F7F7FB] dark:bg-[#151220] text-xs font-semibold text-[#817A91] border-b border-[#EAE7F0] dark:border-[#2E2842]">
-                <tr>
-                  <th className="px-4 py-3">Order ID</th>
-                  <th className="px-4 py-3">Customer</th>
-                  <th className="px-4 py-3">Delivery</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Total</th>
-                  <th className="px-4 py-3 text-right">Advance</th>
-                  <th className="px-4 py-3 text-right">Balance</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#EAE7F0] dark:divide-[#2E2842]">
-                {filteredOrders.map((order) => (
-                  <tr
-                    key={order.id}
-                    className="hover:bg-[#F7F7FB]/80 dark:hover:bg-[#231E33] transition-colors"
-                  >
-                    <td className="px-4 py-3 text-xs font-bold text-[#7656C9] dark:text-[#C5B3F7] tabular-nums whitespace-nowrap">
-                      {order.orderNumber}
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="font-semibold text-[#302A40] dark:text-[#F3F1FA]">
+          <>
+            {/* Mobile Order Cards */}
+            <div className="md:hidden divide-y divide-[#EAE7F0] dark:divide-[#2E2842]">
+              {filteredOrders.map((order) => (
+                <div key={order.id} className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <span className="text-xs font-bold text-[#7656C9] dark:text-[#C5B3F7] tabular-nums">
+                        {order.orderNumber}
+                      </span>
+                      <p className="font-semibold text-sm text-[#302A40] dark:text-[#F3F1FA] truncate">
                         {order.customerName}
                       </p>
                       <p className="text-xs font-medium text-[#817A91] tabular-nums">
                         {order.customerPhone}
                       </p>
-                    </td>
-                    <td className="px-4 py-3 text-xs tabular-nums whitespace-nowrap">
-                      <p className="font-semibold text-[#302A40] dark:text-[#F3F1FA]">
-                        {formatDateValue(order.deliveryDate, dateFmt)}
-                      </p>
-                      <p className="font-medium text-[#817A91]">{order.deliveryTime}</p>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={`text-xs font-semibold ${getStatusColor(order.status)}`}>
-                        {order.status}
+                    </div>
+                    <span className={`text-xs font-semibold shrink-0 ${getStatusColor(order.status)}`}>
+                      {order.status}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 rounded-[10px] bg-[#F7F7FB] dark:bg-[#13101C] p-2.5 text-[11px] tabular-nums">
+                    <div>
+                      <span className="text-[#817A91] block">Total</span>
+                      <span className="font-bold text-[#302A40] dark:text-[#F3F1FA]">
+                        {formatMoneyExact(order.grandTotal, sym)}
                       </span>
-                    </td>
-                    <td className="px-4 py-3 text-right font-display text-xs font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums whitespace-nowrap">
-                      {formatMoneyExact(order.grandTotal, sym)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-xs font-semibold text-emerald-700 dark:text-emerald-400 tabular-nums whitespace-nowrap">
-                      {formatMoneyExact(order.advanceAmount, sym)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-display text-xs font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums whitespace-nowrap">
-                      {formatMoneyExact(order.balanceAmount, sym)}
-                    </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <div className="inline-flex items-center gap-1.5">
+                    </div>
+                    <div>
+                      <span className="text-[#817A91] block">Advance</span>
+                      <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                        {formatMoneyExact(order.advanceAmount, sym)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[#817A91] block">Balance</span>
+                      <span className="font-bold text-[#302A40] dark:text-[#F3F1FA]">
+                        {formatMoneyExact(order.balanceAmount, sym)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                    <span className="text-xs font-medium text-[#817A91] tabular-nums">
+                      {order.fulfillmentType || 'Pickup'}: {formatDateValue(order.deliveryDate, dateFmt)} · {order.deliveryTime}
+                    </span>
+                    <div className="inline-flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(order)}
+                        title="View / Edit Order"
+                        aria-label={`Edit ${order.orderNumber}`}
+                        className="p-1.5 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194]"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                      {order.balanceAmount > 0 && order.status !== 'Cancelled' && (
                         <button
                           type="button"
-                          onClick={() => openEditModal(order)}
-                          title="View / Edit Order"
-                          className="p-1.5 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194]"
+                          onClick={() => openPaymentModal(order)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold"
                         >
-                          <Edit3 className="w-3.5 h-3.5" />
+                          <CreditCard className="w-3.5 h-3.5" />
+                          <span>Pay</span>
                         </button>
-                        {order.balanceAmount > 0 && order.status !== 'Cancelled' && (
-                          <button
-                            type="button"
-                            onClick={() => openPaymentModal(order)}
-                            title="Record Payment"
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold"
-                          >
-                            <CreditCard className="w-3.5 h-3.5" />
-                            <span>Pay</span>
-                          </button>
-                        )}
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => onPrintReceipt(orderToReceipt(order), true)}
+                        title="Print Receipt"
+                        aria-label={`Print ${order.orderNumber}`}
+                        className="p-1.5 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194]"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                      </button>
+                      {order.status !== 'Cancelled' && order.status !== 'Delivered' && (
                         <button
                           type="button"
-                          onClick={() => onPrintReceipt(orderToReceipt(order), true)}
-                          title="Print Receipt"
-                          className="p-1.5 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194]"
+                          onClick={() => setCancelTarget(order)}
+                          title="Cancel Order"
+                          aria-label={`Cancel ${order.orderNumber}`}
+                          className="p-1.5 rounded-[10px] border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50"
                         >
-                          <Printer className="w-3.5 h-3.5" />
+                          <XCircle className="w-3.5 h-3.5" />
                         </button>
-                        {order.status !== 'Cancelled' && order.status !== 'Delivered' && (
-                          <button
-                            type="button"
-                            onClick={() => setCancelTarget(order)}
-                            title="Cancel Order"
-                            className="p-1.5 rounded-[10px] border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50"
-                          >
-                            <XCircle className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Orders Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-[14px] text-left">
+                <thead className="bg-[#F7F7FB] dark:bg-[#151220] text-[13px] font-semibold text-[#817A91] border-b border-[#EAE7F0] dark:border-[#2E2842]">
+                  <tr>
+                    <th className="px-4 py-3">Order ID</th>
+                    <th className="px-4 py-3">Customer</th>
+                    <th className="px-4 py-3">Delivery</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-right">Total</th>
+                    <th className="px-4 py-3 text-right">Advance</th>
+                    <th className="px-4 py-3 text-right">Balance</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-[#EAE7F0] dark:divide-[#2E2842]">
+                  {filteredOrders.map((order) => (
+                    <tr
+                      key={order.id}
+                      className="hover:bg-[#F7F7FB]/80 dark:hover:bg-[#231E33] transition-colors"
+                    >
+                      <td className="px-4 py-3 text-xs font-bold text-[#7656C9] dark:text-[#C5B3F7] tabular-nums whitespace-nowrap">
+                        {order.orderNumber}
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-[#302A40] dark:text-[#F3F1FA]">
+                          {order.customerName}
+                        </p>
+                        <p className="text-xs font-medium text-[#817A91] tabular-nums">
+                          {order.customerPhone}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 text-xs tabular-nums whitespace-nowrap">
+                        <p className="font-semibold text-[#302A40] dark:text-[#F3F1FA]">
+                          {formatDateValue(order.deliveryDate, dateFmt)}
+                        </p>
+                        <p className="font-medium text-[#817A91]">
+                          {order.fulfillmentType || 'Pickup'} · {order.deliveryTime}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className={`text-xs font-semibold ${getStatusColor(order.status)}`}>
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right font-display text-xs font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums whitespace-nowrap">
+                        {formatMoneyExact(order.grandTotal, sym)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-xs font-semibold text-emerald-700 dark:text-emerald-400 tabular-nums whitespace-nowrap">
+                        {formatMoneyExact(order.advanceAmount, sym)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-display text-xs font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums whitespace-nowrap">
+                        {formatMoneyExact(order.balanceAmount, sym)}
+                      </td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(order)}
+                            title="View / Edit Order"
+                            aria-label={`Edit ${order.orderNumber}`}
+                            className="p-1.5 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194]"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          {order.balanceAmount > 0 && order.status !== 'Cancelled' && (
+                            <button
+                              type="button"
+                              onClick={() => openPaymentModal(order)}
+                              title="Record Payment"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold"
+                            >
+                              <CreditCard className="w-3.5 h-3.5" />
+                              <span>Pay</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => onPrintReceipt(orderToReceipt(order), true)}
+                            title="Print Receipt"
+                            aria-label={`Print ${order.orderNumber}`}
+                            className="p-1.5 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194]"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                          </button>
+                          {order.status !== 'Cancelled' && order.status !== 'Delivered' && (
+                            <button
+                              type="button"
+                              onClick={() => setCancelTarget(order)}
+                              title="Cancel Order"
+                              aria-label={`Cancel ${order.orderNumber}`}
+                              className="p-1.5 rounded-[10px] border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
@@ -459,7 +598,18 @@ export function OrdersPage({ onPrintReceipt }: OrdersPageProps) {
                     className="w-full px-3 py-2 rounded-[10px] border border-[#EAE7F0] dark:border-[#2E2842] bg-[#F7F7FB] dark:bg-[#13101C] text-xs font-medium tabular-nums focus:outline-none focus:border-[#7656C9]"
                   />
                 </div>
-                <div className="sm:col-span-2">
+                <div>
+                  <label className="block text-xs font-semibold mb-1">Fulfillment</label>
+                  <select
+                    value={editForm.fulfillmentType}
+                    onChange={(e) => setEditForm((f) => ({ ...f, fulfillmentType: e.target.value as FulfillmentType }))}
+                    className="w-full px-3 py-2 rounded-[10px] border border-[#EAE7F0] dark:border-[#2E2842] bg-[#F7F7FB] dark:bg-[#13101C] text-xs font-semibold focus:outline-none focus:border-[#7656C9]"
+                  >
+                    <option value="Pickup">Pickup</option>
+                    <option value="Delivery">Delivery</option>
+                  </select>
+                </div>
+                <div>
                   <label className="block text-xs font-semibold mb-1">Order Status</label>
                   <select
                     value={editForm.status}
@@ -508,14 +658,14 @@ export function OrdersPage({ onPrintReceipt }: OrdersPageProps) {
                 <button
                   type="button"
                   onClick={() => setEditingOrder(null)}
-                  className="px-4 py-2 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] text-xs font-semibold"
+                  className="px-4 py-2 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] text-[14px] font-semibold"
                 >
                   Close
                 </button>
                 <button
                   type="submit"
                   disabled={savingEdit}
-                  className="px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold disabled:opacity-60"
+                  className="px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-[14px] font-semibold disabled:opacity-60"
                 >
                   {savingEdit ? 'Saving...' : 'Save Changes'}
                 </button>
@@ -615,14 +765,14 @@ export function OrdersPage({ onPrintReceipt }: OrdersPageProps) {
                 <button
                   type="button"
                   onClick={() => setPaymentOrder(null)}
-                  className="px-4 py-2 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] text-xs font-semibold"
+                  className="px-4 py-2 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] text-[14px] font-semibold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={savingPay}
-                  className="px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold disabled:opacity-60"
+                  className="px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-[14px] font-semibold disabled:opacity-60"
                 >
                   {savingPay ? 'Recording...' : 'Record Payment'}
                 </button>

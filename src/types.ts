@@ -122,6 +122,8 @@ export interface Bill {
   createdAt: string;
 }
 
+export type FulfillmentType = 'Pickup' | 'Delivery';
+
 export interface CakeOrder {
   id: string;
   orderNumber: string;
@@ -143,6 +145,7 @@ export interface CakeOrder {
   paymentMode: PaymentMode;
   paymentHistory: OrderPaymentEntry[];
   status: OrderStatus;
+  fulfillmentType?: FulfillmentType;
   orderDate: string;
   deliveryDate: string;
   deliveryTime: string;
@@ -248,6 +251,7 @@ export interface ReceiptData {
   advanceAmount: number;
   balanceAmount: number;
   username: string;
+  fulfillmentType?: FulfillmentType;
   deliveryDate?: string;
   deliveryTime?: string;
   notes?: string;
@@ -276,6 +280,7 @@ export interface SalesTransaction {
   balanceAmount: number;
   paymentStatus: 'Paid' | 'Partial' | 'Pending';
   orderStatus?: OrderStatus | null;
+  fulfillmentType?: FulfillmentType | null;
   deliveryDate?: string | null;
   deliveryTime?: string | null;
   notes?: string | null;

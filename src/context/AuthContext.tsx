@@ -37,6 +37,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     refreshUser();
+    const handleUnauthorized = () => {
+      setStoredToken(null);
+      setUser(null);
+    };
+    window.addEventListener('easybill:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('easybill:unauthorized', handleUnauthorized);
   }, [refreshUser]);
 
   const login = useCallback(async (username: string, password: string) => {

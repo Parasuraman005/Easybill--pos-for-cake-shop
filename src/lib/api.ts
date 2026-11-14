@@ -51,6 +51,10 @@ export async function apiRequest<T>(
   const data = isJson ? await response.json() : null;
 
   if (!response.ok) {
+    if (response.status === 401 && !url.includes('/api/auth/login')) {
+      setStoredToken(null);
+      window.dispatchEvent(new CustomEvent('easybill:unauthorized'));
+    }
     throw new ApiError(
       data?.error || `Request failed (${response.status})`,
       response.status

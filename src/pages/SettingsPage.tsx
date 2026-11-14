@@ -114,6 +114,15 @@ export function SettingsPage({ onPrintReceipt }: SettingsPageProps) {
     }
   }, [activeTab, loadUsers]);
 
+  useEffect(() => {
+    if (!userModalOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setUserModalOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [userModalOpen]);
+
   const handleLogoFile = (
     e: React.ChangeEvent<HTMLInputElement>,
     target: 'company' | 'application'
@@ -340,15 +349,15 @@ export function SettingsPage({ onPrintReceipt }: SettingsPageProps) {
   ];
 
   const inputClass =
-    'w-full px-3 py-2 rounded-[10px] border border-[#EAE7F0] dark:border-[#2E2842] bg-[#F7F7FB] dark:bg-[#13101C] text-xs font-medium text-[#302A40] dark:text-[#F3F1FA] focus:outline-none focus:border-[#7656C9]';
+    'w-full px-3 py-2 rounded-[10px] border border-[#EAE7F0] dark:border-[#2E2842] bg-[#F7F7FB] dark:bg-[#13101C] text-[14px] font-medium text-[#302A40] dark:text-[#F3F1FA] focus:outline-none focus:border-[#7656C9]';
 
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="font-display text-xl font-bold text-[#302A40] dark:text-[#F3F1FA]">
+        <h1 className="font-display text-[22px] sm:text-[26px] leading-tight font-bold text-[#302A40] dark:text-[#F3F1FA]">
           Settings &amp; Administration
         </h1>
-        <p className="text-xs font-medium text-[#817A91] mt-0.5">
+        <p className="text-[14px] font-normal text-[#817A91] mt-0.5">
           Configure cake shop branding, tax rates, thermal printers, staff permissions, and data backups.
         </p>
       </div>
@@ -363,7 +372,7 @@ export function SettingsPage({ onPrintReceipt }: SettingsPageProps) {
               key={t.key}
               type="button"
               onClick={() => setActiveTab(t.key)}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-[10px] text-xs font-semibold border transition-colors whitespace-nowrap shrink-0 ${
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-[10px] text-[14px] font-semibold border transition-colors whitespace-nowrap shrink-0 ${
                 active
                   ? 'bg-[#7656C9] border-[#7656C9] text-white'
                   : 'bg-white dark:bg-[#1B1726] border-[#EAE7F0] dark:border-[#2E2842] text-[#817A91] hover:bg-[#E9E2FF]/50 hover:text-[#302A40]'
@@ -377,11 +386,11 @@ export function SettingsPage({ onPrintReceipt }: SettingsPageProps) {
       </div>
 
       {/* Tab Content */}
-      <div className="eb-card p-6">
+      <div className="eb-card p-4 sm:p-6">
         {/* 1. Company Settings */}
         {activeTab === 'company' && (
           <form onSubmit={handleSaveSettings} className="space-y-5">
-            <h2 className="font-display text-base font-semibold">Company / Cake Shop Settings</h2>
+            <h2 className="font-display text-[17px] sm:text-[19px] font-semibold">Company / Cake Shop Settings</h2>
 
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-[12px] border border-[#EAE7F0] dark:border-[#2E2842] bg-[#F7F7FB] dark:bg-[#13101C] flex items-center justify-center overflow-hidden shrink-0">
@@ -486,7 +495,7 @@ export function SettingsPage({ onPrintReceipt }: SettingsPageProps) {
             <button
               type="submit"
               disabled={savingSettings}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-[14px] font-semibold"
             >
               <Save className="w-4 h-4" />
               <span>{savingSettings ? 'Saving...' : 'Save Company Settings'}</span>
@@ -497,7 +506,7 @@ export function SettingsPage({ onPrintReceipt }: SettingsPageProps) {
         {/* 2. Application Settings */}
         {activeTab === 'application' && (
           <form onSubmit={handleSaveSettings} className="space-y-5">
-            <h2 className="font-display text-base font-semibold">Application Preferences</h2>
+            <h2 className="font-display text-[17px] sm:text-[19px] font-semibold">Application Preferences</h2>
 
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-[12px] border border-[#EAE7F0] dark:border-[#2E2842] bg-[#F7F7FB] dark:bg-[#13101C] flex items-center justify-center overflow-hidden shrink-0">
@@ -618,7 +627,7 @@ export function SettingsPage({ onPrintReceipt }: SettingsPageProps) {
             <button
               type="submit"
               disabled={savingSettings}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-[14px] font-semibold"
             >
               <Save className="w-4 h-4" />
               <span>{savingSettings ? 'Saving...' : 'Save Application Settings'}</span>
@@ -629,7 +638,7 @@ export function SettingsPage({ onPrintReceipt }: SettingsPageProps) {
         {/* 3. Billing Settings */}
         {activeTab === 'billing' && (
           <form onSubmit={handleSaveSettings} className="space-y-5">
-            <h2 className="font-display text-base font-semibold">Billing, Tax &amp; Receipt Settings</h2>
+            <h2 className="font-display text-[17px] sm:text-[19px] font-semibold">Billing, Tax &amp; Receipt Settings</h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -768,7 +777,7 @@ export function SettingsPage({ onPrintReceipt }: SettingsPageProps) {
             <button
               type="submit"
               disabled={savingSettings}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-[14px] font-semibold"
             >
               <Save className="w-4 h-4" />
               <span>{savingSettings ? 'Saving...' : 'Save Billing Settings'}</span>
@@ -780,7 +789,7 @@ export function SettingsPage({ onPrintReceipt }: SettingsPageProps) {
         {activeTab === 'printer' && (
           <form onSubmit={handleSaveSettings} className="space-y-5">
             <div className="flex items-center justify-between gap-4">
-              <h2 className="font-display text-base font-semibold">Thermal &amp; A4 Printer Settings</h2>
+              <h2 className="font-display text-[17px] sm:text-[19px] font-semibold">Thermal &amp; A4 Printer Settings</h2>
               <div
                 className={`inline-flex items-center gap-1.5 text-xs font-semibold ${
                   draft.printer.isConnected
@@ -882,7 +891,7 @@ export function SettingsPage({ onPrintReceipt }: SettingsPageProps) {
               <button
                 type="submit"
                 disabled={savingSettings}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-[14px] font-semibold"
               >
                 <Save className="w-4 h-4" />
                 <span>{savingSettings ? 'Saving...' : 'Save Printer Settings'}</span>
@@ -891,7 +900,7 @@ export function SettingsPage({ onPrintReceipt }: SettingsPageProps) {
               <button
                 type="button"
                 onClick={handleTestPrint}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] text-xs font-semibold"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] text-[14px] font-semibold"
               >
                 <Printer className="w-4 h-4" />
                 <span>Test Print</span>
@@ -903,24 +912,85 @@ export function SettingsPage({ onPrintReceipt }: SettingsPageProps) {
         {/* 5. User Management */}
         {activeTab === 'users' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="font-display text-base font-semibold">Staff &amp; Role Management</h2>
-                <p className="text-xs font-medium text-[#817A91] mt-0.5">
+                <h2 className="font-display text-[17px] sm:text-[19px] font-semibold">Staff &amp; Role Management</h2>
+                <p className="text-[14px] font-normal text-[#817A91] mt-0.5">
                   Manage counter cashiers, managers, passwords, and module access permissions.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={openAddUserModal}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold"
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-[14px] font-semibold whitespace-nowrap shrink-0 w-full sm:w-auto"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add User</span>
               </button>
             </div>
 
-            <div className="overflow-x-auto border border-[#EAE7F0] dark:border-[#2E2842] rounded-[12px]">
+            {/* Mobile Staff Card List */}
+            <div className="md:hidden divide-y divide-[#EAE7F0] dark:divide-[#2E2842] border border-[#EAE7F0] dark:border-[#2E2842] rounded-[12px]">
+              {users.map((u) => (
+                <div key={u.id} className="p-4 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-[#7656C9] dark:text-[#C5B3F7] truncate">
+                        {u.username}
+                      </p>
+                      <p className="text-sm font-semibold text-[#302A40] dark:text-[#F3F1FA] truncate">
+                        {u.fullName}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0 text-xs font-semibold">
+                      <span className="capitalize block text-[#302A40] dark:text-[#E9E2FF]">
+                        {u.role}
+                      </span>
+                      <span
+                        className={
+                          u.active
+                            ? 'text-emerald-700 dark:text-emerald-400'
+                            : 'text-[#817A91]'
+                        }
+                      >
+                        {u.active ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-[11px] font-medium text-[#817A91]">
+                    Modules:{' '}
+                    {u.role === 'admin'
+                      ? 'All Modules'
+                      : MODULE_LABELS.filter((m) => u.permissions?.[m.key])
+                          .map((m) => m.label)
+                          .join(', ') || 'None'}
+                  </p>
+                  <div className="flex items-center justify-end gap-1.5 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => openEditUserModal(u)}
+                      className="p-1.5 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194]"
+                      aria-label={`Edit ${u.username}`}
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    {u.id !== currentUser?.id && (
+                      <button
+                        type="button"
+                        onClick={() => setDeleteUserTarget(u)}
+                        className="p-1.5 rounded-[10px] border border-red-200 dark:border-red-900/60 text-red-600 hover:bg-red-50"
+                        aria-label={`Delete ${u.username}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Staff Table */}
+            <div className="hidden md:block overflow-x-auto border border-[#EAE7F0] dark:border-[#2E2842] rounded-[12px]">
               <table className="w-full text-xs text-left">
                 <thead className="bg-[#F7F7FB] dark:bg-[#151220] font-semibold text-[#817A91] border-b border-[#EAE7F0] dark:border-[#2E2842]">
                   <tr>
@@ -993,21 +1063,21 @@ export function SettingsPage({ onPrintReceipt }: SettingsPageProps) {
         {/* 6. Backup & Data Management */}
         {activeTab === 'backup' && (
           <div className="max-w-2xl space-y-5">
-            <h2 className="font-display text-base font-semibold">Backup &amp; Data Management</h2>
-            <p className="text-xs font-medium text-[#817A91] leading-relaxed">
+            <h2 className="font-display text-[17px] sm:text-[19px] font-semibold">Backup &amp; Data Management</h2>
+            <p className="text-[14px] font-normal text-[#817A91] leading-relaxed">
               Export a complete JSON snapshot of your products, customers, bills, orders, expenses, and settings—or restore from a previous Easy Bill backup file.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="rounded-[12px] border border-[#EAE7F0] dark:border-[#2E2842] p-4 space-y-3 bg-[#F7F7FB] dark:bg-[#13101C]">
-                <h3 className="font-display text-sm font-semibold">Export / Backup Data</h3>
-                <p className="text-xs font-medium text-[#817A91]">
+                <h3 className="font-display text-[15px] font-semibold">Export / Backup Data</h3>
+                <p className="text-[13px] font-medium text-[#817A91]">
                   Downloads a portable JSON archive of all shop transactions and settings.
                 </p>
                 <button
                   type="button"
                   onClick={handleExportBackup}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-[14px] font-semibold"
                 >
                   <Download className="w-4 h-4" />
                   <span>Download Backup JSON</span>
@@ -1015,11 +1085,11 @@ export function SettingsPage({ onPrintReceipt }: SettingsPageProps) {
               </div>
 
               <div className="rounded-[12px] border border-[#EAE7F0] dark:border-[#2E2842] p-4 space-y-3 bg-[#F7F7FB] dark:bg-[#13101C]">
-                <h3 className="font-display text-sm font-semibold">Restore / Import Data</h3>
-                <p className="text-xs font-medium text-[#817A91]">
+                <h3 className="font-display text-[15px] font-semibold">Restore / Import Data</h3>
+                <p className="text-[13px] font-medium text-[#817A91]">
                   Replaces current products, orders, bills, expenses, and settings from a backup file.
                 </p>
-                <label className="inline-flex items-center gap-2 px-4 py-2 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] text-xs font-semibold cursor-pointer">
+                <label className="font-display inline-flex items-center gap-2 px-4 py-2 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] text-[14px] font-semibold cursor-pointer">
                   <Upload className="w-4 h-4" />
                   <span>Select Backup File</span>
                   <input
@@ -1056,8 +1126,8 @@ export function SettingsPage({ onPrintReceipt }: SettingsPageProps) {
               </button>
             </div>
 
-            <form onSubmit={handleSaveUser} className="p-5 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleSaveUser} className="p-5 space-y-4 max-h-[78vh] overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold mb-1">Username *</label>
                   <input
@@ -1081,7 +1151,7 @@ export function SettingsPage({ onPrintReceipt }: SettingsPageProps) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold mb-1">Full Name</label>
                   <input
@@ -1144,14 +1214,14 @@ export function SettingsPage({ onPrintReceipt }: SettingsPageProps) {
                 <button
                   type="button"
                   onClick={() => setUserModalOpen(false)}
-                  className="px-4 py-2 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] text-xs font-semibold"
+                  className="px-4 py-2 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] text-[14px] font-semibold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={savingUser}
-                  className="px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold"
+                  className="px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-[14px] font-semibold"
                 >
                   {savingUser ? 'Saving...' : 'Save User'}
                 </button>

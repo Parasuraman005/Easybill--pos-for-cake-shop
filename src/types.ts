@@ -29,16 +29,27 @@ export interface AuthUser {
   createdAt: string;
 }
 
-export type ProductCategory =
-  | 'Cakes'
-  | 'Pastries'
-  | 'Cupcakes'
-  | 'Chocolates'
-  | 'Cookies'
-  | 'Desserts'
-  | 'Snacks'
-  | 'Beverages'
-  | 'Others';
+export const DEFAULT_PRODUCT_CATEGORIES = [
+  'Cakes',
+  'Pastries',
+  'Cupcakes',
+  'Chocolates',
+  'Cookies',
+  'Desserts',
+  'Snacks',
+  'Beverages',
+  'Others',
+] as const;
+
+export type ProductCategory = string;
+
+export interface CategoryItem {
+  id: string;
+  name: string;
+  isCustom: boolean;
+  sortOrder: number;
+  createdAt: string;
+}
 
 export type MeasurementUnit = 'KG' | 'Gram' | 'Piece';
 
@@ -187,10 +198,13 @@ export interface CompanySettings {
   gstin: string;
 }
 
+export type ThemePresetId = 'navy-teal' | 'charcoal-orange' | 'emerald-white' | 'midnight-gold';
+
 export interface ApplicationSettings {
   appName: string;
   appLogo: string;
   theme: 'light' | 'dark';
+  colorTheme?: ThemePresetId;
   dateFormat: 'DD-MM-YYYY' | 'MM-DD-YYYY' | 'YYYY-MM-DD';
   currencySymbol: string;
 }
@@ -227,8 +241,21 @@ export interface DashboardSummary {
   monthlySales: number;
   monthlyBillCount: number;
   monthlyExpenses: number;
+  todayCollections?: number;
+  monthlyCollections?: number;
+  pendingBalanceDue?: number;
   pendingOrders: CakeOrder[];
   recentBills: Bill[];
+}
+
+export interface BackupSummary {
+  products: number;
+  categories: number;
+  customers: number;
+  bills: number;
+  orders: number;
+  expenses: number;
+  users: number;
 }
 
 export interface ReceiptData {
@@ -252,6 +279,7 @@ export interface ReceiptData {
   balanceAmount: number;
   username: string;
   fulfillmentType?: FulfillmentType;
+  orderStatus?: OrderStatus;
   deliveryDate?: string;
   deliveryTime?: string;
   notes?: string;
@@ -279,6 +307,7 @@ export interface SalesTransaction {
   advanceAmount: number;
   balanceAmount: number;
   paymentStatus: 'Paid' | 'Partial' | 'Pending';
+  paymentHistory?: OrderPaymentEntry[];
   orderStatus?: OrderStatus | null;
   fulfillmentType?: FulfillmentType | null;
   deliveryDate?: string | null;

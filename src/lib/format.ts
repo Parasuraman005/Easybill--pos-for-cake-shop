@@ -33,11 +33,22 @@ export function formatDateValue(
   return `${day}-${month}-${year}`;
 }
 
-export function formatYMDToDMY(ymd: string): string {
+export function formatYMD(
+  ymd: string,
+  format: ApplicationSettings['dateFormat'] = 'DD-MM-YYYY'
+): string {
   if (!ymd) return '';
-  const parts = ymd.split('-');
+  const clean = String(ymd).slice(0, 10);
+  const parts = clean.split('-');
   if (parts.length !== 3) return ymd;
-  return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  const [year, month, day] = parts;
+  if (format === 'MM-DD-YYYY') return `${month}-${day}-${year}`;
+  if (format === 'YYYY-MM-DD') return `${year}-${month}-${day}`;
+  return `${day}-${month}-${year}`;
+}
+
+export function formatYMDToDMY(ymd: string): string {
+  return formatYMD(ymd, 'DD-MM-YYYY');
 }
 
 export function toLocalYMD(dateInput: string | Date): string {
@@ -88,6 +99,7 @@ export function billToReceipt(bill: Bill, linkedOrder?: CakeOrder | null): Recei
     balanceAmount: bill.balanceAmount,
     username: bill.username,
     fulfillmentType: linkedOrder?.fulfillmentType,
+    orderStatus: linkedOrder?.status || (bill.type === 'order' ? 'Pending' : undefined),
     deliveryDate: linkedOrder?.deliveryDate,
     deliveryTime: linkedOrder?.deliveryTime,
     notes: linkedOrder?.notes,
@@ -116,6 +128,7 @@ export function salesTxToReceipt(tx: SalesTransaction): ReceiptData {
     balanceAmount: tx.balanceAmount,
     username: tx.username,
     fulfillmentType: tx.fulfillmentType || undefined,
+    orderStatus: tx.orderStatus || (tx.type === 'order' ? 'Pending' : undefined),
     deliveryDate: tx.deliveryDate || undefined,
     deliveryTime: tx.deliveryTime || undefined,
     notes: tx.notes || undefined,
@@ -144,6 +157,7 @@ export function orderToReceipt(order: CakeOrder): ReceiptData {
     balanceAmount: order.balanceAmount,
     username: order.username,
     fulfillmentType: order.fulfillmentType,
+    orderStatus: order.status,
     deliveryDate: order.deliveryDate,
     deliveryTime: order.deliveryTime,
     notes: order.notes,

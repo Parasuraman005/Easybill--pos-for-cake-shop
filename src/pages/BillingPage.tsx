@@ -19,49 +19,44 @@ import { apiRequest } from '../lib/api';
 import { useSettings } from '../context/SettingsContext';
 import { useToast } from '../context/ToastContext';
 import { ProductImage } from '../components/ProductImage';
-import { billToReceipt, formatMoneyExact, getTodayYMD } from '../lib/format';
-import type {
-  Bill,
-  CakeOrder,
-  CartItem,
-  Customer,
-  FulfillmentType,
-  PaymentMode,
-  Product,
-  ProductCategory,
-  ReceiptData,
+import { billToReceipt, formatCurrency, formatMoneyExact, getTodayYMD } from '../lib/format';
+import {
+  DEFAULT_PRODUCT_CATEGORIES,
+  type Bill,
+  type CakeOrder,
+  type CartItem,
+  type CategoryItem,
+  type Customer,
+  type FulfillmentType,
+  type PaymentMode,
+  type Product,
+  type ProductCategory,
+  type ReceiptData,
 } from '../types';
 
 interface BillingPageProps {
   onPrintReceipt: (receipt: ReceiptData, autoPrint?: boolean) => void;
 }
 
-const CATEGORIES: {
+const DEFAULT_CATEGORY_TABS: {
   key: 'All' | 'Favorites' | ProductCategory;
   label: string;
 }[] = [
   { key: 'All', label: 'All' },
   { key: 'Favorites', label: 'Favorites' },
-  { key: 'Cakes', label: 'Cakes' },
-  { key: 'Pastries', label: 'Pastries' },
-  { key: 'Cupcakes', label: 'Cupcakes' },
-  { key: 'Chocolates', label: 'Chocolates' },
-  { key: 'Cookies', label: 'Cookies' },
-  { key: 'Desserts', label: 'Desserts' },
-  { key: 'Snacks', label: 'Snacks' },
-  { key: 'Beverages', label: 'Beverages' },
-  { key: 'Others', label: 'Others' },
+  ...DEFAULT_PRODUCT_CATEGORIES.map((c) => ({ key: c, label: c })),
 ];
 
 const KG_PRESETS = [0.5, 1, 1.5, 2];
 const GRAM_PRESETS = [0.5, 1, 2, 5];
 
 export function BillingPage({ onPrintReceipt }: BillingPageProps) {
-  const { settings } = useSettings();
+  const { settings, loaded } = useSettings();
   const { showToast } = useToast();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [categoryTabs, setCategoryTabs] = useState(DEFAULT_CATEGORY_TABS);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -96,12 +91,20 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
     setLoading(true);
     setLoadError(null);
     try {
-      const [prodRes, custRes] = await Promise.all([
+      const [prodRes, custRes, catRes] = await Promise.all([
         apiRequest<Product[]>('/api/products'),
         apiRequest<Customer[]>('/api/customers'),
+        apiRequest<CategoryItem[]>('/api/categories').catch(() => [] as CategoryItem[]),
       ]);
       setProducts(prodRes.filter((p) => p.isActive));
       setCustomers(custRes);
+      if (Array.isArray(catRes) && catRes.length > 0) {
+        setCategoryTabs([
+          { key: 'All', label: 'All' },
+          { key: 'Favorites', label: 'Favorites' },
+          ...catRes.map((c) => ({ key: c.name, label: c.name })),
+        ]);
+      }
     } catch (err: any) {
       const msg = err?.message || 'Unable to load menu catalog.';
       setLoadError(msg);
@@ -114,6 +117,12 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (loaded && cart.length === 0 && paymentMode !== 'Advance') {
+      setPaymentMode(settings.billing.defaultPaymentMode || 'Cash');
+    }
+  }, [loaded, settings.billing.defaultPaymentMode, cart.length]);
 
   useEffect(() => {
     if (billingMode === 'walkin' && paymentMode === 'Advance') {
@@ -257,6 +266,7 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
     setDiscountPercent(0);
     setAdvanceAmount('');
     setOrderNotes('');
+    setPaymentMode(settings.billing.defaultPaymentMode || 'Cash');
     showToast('Cart cleared', 'info');
   };
 
@@ -336,6 +346,7 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
       setDiscountPercent(0);
       setAdvanceAmount('');
       setOrderNotes('');
+      setPaymentMode(settings.billing.defaultPaymentMode || 'Cash');
       clearCustomer();
 
       onPrintReceipt(billToReceipt(response.bill, response.order), true);
@@ -351,41 +362,41 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 items-start">
+    <div className="flex flex-col lg:flex-row gap-4 lg:h-full lg:min-h-0 lg:overflow-hidden">
       {/* Left Side: Product Selection Catalog */}
-      <div className="flex-1 min-w-0 w-full space-y-3">
-        {/* Sticky Search Bar & Category Filter Strip */}
-        <div className="sticky top-11 sm:top-12 z-20 bg-[#F7F7FB] dark:bg-[#13101C] pt-1 pb-2.5 space-y-2.5">
+      <div className="flex-1 min-w-0 w-full lg:h-full lg:min-h-0 flex flex-col gap-3">
+        {/* Top Search Bar & Category Filter Strip */}
+        <div className="sticky top-12 lg:static z-20 bg-[var(--eb-bg)] pb-1 lg:pb-0 space-y-2 shrink-0">
           {/* Search Input & Mobile Cart Jump */}
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="relative flex-1 min-w-0">
-              <Search className="w-4 h-4 text-[#817A91] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-4 h-4 text-[var(--eb-text-muted)] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search cakes, pastries, cupcakes..."
-                className="w-full pl-10 pr-9 py-2.5 rounded-[12px] bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] text-sm font-medium text-[#302A40] dark:text-[#F3F1FA] placeholder:text-[#817A91]/80 focus:outline-none focus:ring-2 focus:ring-[#7656C9]/20 focus:border-[#7656C9] transition-colors shadow-[0_2px_8px_rgba(48,42,64,0.04)]"
+                className="w-full h-[40px] pl-10 pr-9 rounded-[10px] bg-[var(--eb-surface)] border border-[var(--eb-border)] text-[13px] font-normal text-[var(--eb-text)] placeholder:text-[var(--eb-text-muted)]/70 focus:outline-none focus:ring-2 focus:ring-[var(--eb-accent)]/15 focus:border-[var(--eb-accent)] transition-colors shadow-sm"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#817A91] hover:text-[#302A40] p-1"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--eb-text-muted)] hover:text-[var(--eb-text)] p-1"
                   aria-label="Clear product search"
                 >
                   <X className="w-4 h-4" />
                 </button>
               )}
             </div>
-            <span className="hidden sm:inline-block text-xs font-semibold text-[#817A91] tabular-nums whitespace-nowrap">
+            <span className="hidden sm:inline-block text-[12px] font-medium text-[var(--eb-text-muted)] tabular-nums whitespace-nowrap">
               {filteredProducts.length} items
             </span>
             {cart.length > 0 && (
               <button
                 type="button"
                 onClick={scrollToCartPanel}
-                className="lg:hidden inline-flex items-center gap-1.5 px-3 py-2.5 rounded-[12px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-bold tabular-nums shadow-sm whitespace-nowrap shrink-0"
+                className="lg:hidden inline-flex items-center gap-1.5 px-3 py-2 rounded-[10px] bg-[var(--eb-accent)] hover:bg-[var(--eb-accent-hover)] text-white text-xs font-medium tabular-nums shadow-sm whitespace-nowrap shrink-0"
                 aria-label="Jump to shopping cart"
               >
                 <ShoppingCart className="w-3.5 h-3.5" />
@@ -396,18 +407,18 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
           </div>
 
           {/* Mini-Box Category Filters */}
-          <div className="flex items-center gap-2 overflow-x-auto thin-scrollbar pb-0.5">
-            {CATEGORIES.map((cat) => {
+          <div className="flex items-center gap-1.5 overflow-x-auto thin-scrollbar pb-0.5">
+            {categoryTabs.map((cat) => {
               const active = selectedCategory === cat.key;
               return (
                 <button
                   key={cat.key}
                   type="button"
                   onClick={() => setSelectedCategory(cat.key)}
-                  className={`px-3.5 py-1.5 rounded-[10px] text-xs font-semibold whitespace-nowrap transition-colors border shrink-0 ${
+                  className={`px-3 py-1.5 rounded-[8px] text-[12px] font-medium whitespace-nowrap transition-colors border shrink-0 ${
                     active
-                      ? 'bg-[#7656C9] border-[#7656C9] text-white shadow-sm'
-                      : 'bg-white dark:bg-[#1B1726] border-[#EAE7F0] dark:border-[#2E2842] text-[#817A91] dark:text-[#A69FB8] hover:border-[#7656C9] hover:text-[#302A40] dark:hover:text-white'
+                      ? 'bg-[var(--eb-accent)] border-[var(--eb-accent)] text-white shadow-sm'
+                      : 'bg-[var(--eb-surface)] border-[var(--eb-border)] text-[var(--eb-text-muted)] hover:border-[var(--eb-accent)] hover:text-[var(--eb-text)]'
                   }`}
                 >
                   {cat.label}
@@ -417,155 +428,157 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
           </div>
         </div>
 
-        {/* Product Grid */}
-        {loading ? (
-          <div className="grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
-            {Array.from({ length: 8 }).map((_, idx) => (
-              <div key={idx} className="h-64 eb-card animate-pulse" />
-            ))}
-          </div>
-        ) : loadError ? (
-          <div className="eb-card p-10 text-center space-y-3">
-            <AlertCircle className="w-8 h-8 mx-auto text-rose-500" />
-            <div>
-              <p className="text-sm font-semibold text-[#302A40] dark:text-[#F3F1FA]">
-                Unable to load product catalog
-              </p>
-              <p className="text-xs font-medium text-[#817A91] mt-1">{loadError}</p>
+        {/* Scrollable Product Grid */}
+        <div className="flex-1 min-h-0 lg:overflow-y-auto thin-scrollbar lg:pr-1">
+          {loading ? (
+            <div className="grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2.5">
+              {Array.from({ length: 10 }).map((_, idx) => (
+                <div key={idx} className="h-56 eb-card animate-pulse" />
+              ))}
             </div>
-            <button
-              type="button"
-              onClick={loadData}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold transition-colors"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Retry</span>
-            </button>
-          </div>
-        ) : filteredProducts.length === 0 ? (
-          <div className="eb-card p-10 text-center">
-            <Cake className="w-8 h-8 mx-auto text-[#817A91]/50 mb-2" />
-            <p className="text-sm font-semibold text-[#302A40] dark:text-[#F3F1FA]">
-              No matching products found
-            </p>
-            <p className="text-xs font-medium text-[#817A91] mt-1">
-              Try another category or clear your search filter.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
-            {filteredProducts.map((product) => {
-              const selectedWt = getProductAddQty(product);
-              const inCart = cart.find((c) => c.productId === product.id);
-              const presets =
-                product.unit === 'KG'
-                  ? KG_PRESETS
-                  : product.unit === 'Gram'
-                  ? GRAM_PRESETS
-                  : null;
+          ) : loadError ? (
+            <div className="eb-card p-10 text-center space-y-3">
+              <AlertCircle className="w-8 h-8 mx-auto text-[#DC2626]" />
+              <div>
+                <p className="text-[14px] font-semibold text-[var(--eb-text)]">
+                  Unable to load product catalog
+                </p>
+                <p className="text-[12px] font-normal text-[var(--eb-text-muted)] mt-1">{loadError}</p>
+              </div>
+              <button
+                type="button"
+                onClick={loadData}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] bg-blue-600 hover:bg-blue-700 text-white text-[14px] font-medium shadow-sm transition-colors whitespace-nowrap shrink-0"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Retry</span>
+              </button>
+            </div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="eb-card p-10 text-center">
+              <Cake className="w-8 h-8 mx-auto text-[var(--eb-text-muted)]/50 mb-2" />
+              <p className="text-[14px] font-semibold text-[var(--eb-text)]">
+                No matching products found
+              </p>
+              <p className="text-[12px] font-normal text-[var(--eb-text-muted)] mt-1">
+                Try another category or clear your search filter.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2.5 pb-1">
+              {filteredProducts.map((product) => {
+                const selectedWt = getProductAddQty(product);
+                const inCart = cart.find((c) => c.productId === product.id);
+                const presets =
+                  product.unit === 'KG'
+                    ? KG_PRESETS
+                    : product.unit === 'Gram'
+                    ? GRAM_PRESETS
+                    : null;
 
-              return (
-                <div
-                  key={product.id}
-                  className="eb-card overflow-hidden flex flex-col justify-between hover:border-[#7656C9]/60 hover:shadow-[0_6px_18px_rgba(118,86,201,0.09)] transition-all"
-                >
-                  <div>
-                    <div className="relative aspect-[4/3] bg-[#F7F7FB] dark:bg-[#13101C] overflow-hidden">
-                      <ProductImage src={product.image} alt={product.name} />
-                      <button
-                        type="button"
-                        onClick={(e) => toggleFavorite(product.id, e)}
-                        aria-label={product.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-                        className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center backdrop-blur-sm transition-colors ${
-                          product.isFavorite
-                            ? 'bg-[#E9E2FF] text-[#7656C9] shadow-sm'
-                            : 'bg-[#302A40]/45 text-white hover:bg-[#7656C9]'
-                        }`}
-                      >
-                        <Star
-                          className={`w-3.5 h-3.5 ${product.isFavorite ? 'fill-[#7656C9]' : ''}`}
-                        />
-                      </button>
-                      {inCart && (
-                        <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-[8px] bg-[#7656C9] text-white text-[11px] font-semibold tabular-nums shadow-sm">
-                          {inCart.quantity} {product.unit} in cart
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="p-3">
-                      <p className="text-[11px] font-medium text-[#817A91] truncate">
-                        {product.category} · {product.unit}
-                      </p>
-                      <h3 className="mt-0.5 font-display text-sm font-semibold text-[#302A40] dark:text-[#F3F1FA] line-clamp-2 leading-snug min-h-[2.4rem]">
-                        {product.name}
-                      </h3>
-
-                      <div className="mt-1.5 flex items-baseline justify-between gap-1">
-                        <span className="font-display text-sm font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums">
-                          {formatMoneyExact(product.price, sym)}
-                        </span>
-                        <span className="text-[11px] font-medium text-[#817A91]">/{product.unit}</span>
+                return (
+                  <div
+                    key={product.id}
+                    className="eb-card overflow-hidden flex flex-col justify-between hover:border-[var(--eb-accent)]/60 hover:shadow-md transition-all"
+                  >
+                    <div>
+                      <div className="relative aspect-[16/10] bg-[var(--eb-bg)] overflow-hidden">
+                        <ProductImage src={product.image} alt={product.name} />
+                        <button
+                          type="button"
+                          onClick={(e) => toggleFavorite(product.id, e)}
+                          aria-label={product.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                          className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center backdrop-blur-sm transition-colors ${
+                            product.isFavorite
+                              ? 'bg-amber-50 dark:bg-amber-950/80 text-amber-500 border border-amber-300 dark:border-amber-700 shadow-sm'
+                              : 'bg-black/40 text-white hover:bg-amber-500'
+                          }`}
+                        >
+                          <Star
+                            className={`w-3.5 h-3.5 ${product.isFavorite ? 'fill-amber-500 text-amber-500' : ''}`}
+                          />
+                        </button>
+                        {inCart && (
+                          <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded-[6px] bg-[var(--eb-accent)] text-white text-[10px] font-semibold tabular-nums shadow-sm">
+                            {inCart.quantity} {product.unit} in cart
+                          </span>
+                        )}
                       </div>
 
-                      {presets && (
-                        <div className="mt-2 grid grid-cols-4 gap-1">
-                          {presets.map((wt) => (
-                            <button
-                              key={wt}
-                              type="button"
-                              onClick={() =>
-                                setCardWeights((prev) => ({ ...prev, [product.id]: wt }))
-                              }
-                              className={`py-1 rounded-[8px] text-[10px] font-semibold tabular-nums border transition-colors ${
-                                selectedWt === wt
-                                  ? 'bg-[#7656C9] text-white border-[#7656C9]'
-                                  : 'bg-[#F7F7FB] dark:bg-[#13101C] text-[#817A91] border-[#EAE7F0] dark:border-[#2E2842] hover:border-[#7656C9] hover:text-[#302A40]'
-                              }`}
-                            >
-                              {wt}
-                            </button>
-                          ))}
+                      <div className="p-2.5">
+                        <p className="text-[11px] font-normal text-[var(--eb-text-muted)] truncate">
+                          {product.category} · {product.unit}
+                        </p>
+                        <h3 className="mt-0.5 text-[13px] font-semibold text-[var(--eb-text)] line-clamp-2 leading-snug min-h-[2.2rem]">
+                          {product.name}
+                        </h3>
+
+                        <div className="mt-1 flex items-baseline justify-between gap-1">
+                          <span className="text-[14px] font-bold text-[var(--eb-text)] tabular-nums">
+                            {formatMoneyExact(product.price, sym)}
+                          </span>
+                          <span className="text-[11px] font-normal text-[var(--eb-text-muted)]">/{product.unit}</span>
                         </div>
-                      )}
+
+                        {presets && (
+                          <div className="mt-1.5 grid grid-cols-4 gap-1">
+                            {presets.map((wt) => (
+                              <button
+                                key={wt}
+                                type="button"
+                                onClick={() =>
+                                  setCardWeights((prev) => ({ ...prev, [product.id]: wt }))
+                                }
+                                className={`py-0.5 rounded-[6px] text-[10px] font-semibold tabular-nums border transition-colors ${
+                                  selectedWt === wt
+                                    ? 'bg-[var(--eb-accent)] text-white border-[var(--eb-accent)]'
+                                    : 'bg-[var(--eb-bg)] text-[var(--eb-text-muted)] border-[var(--eb-border)] hover:border-[var(--eb-accent)] hover:text-[var(--eb-text)]'
+                                }`}
+                              >
+                                {wt}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="px-2.5 pb-2.5 pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => addToCart(product)}
+                        className="w-full py-1.5 px-2.5 rounded-[8px] bg-[var(--eb-accent)] hover:bg-[var(--eb-accent-hover)] text-white text-[12px] font-medium inline-flex items-center justify-center gap-1 transition-colors whitespace-nowrap shadow-sm"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>
+                          Add {presets ? `${selectedWt} ${product.unit}` : 'to Cart'}
+                        </span>
+                      </button>
                     </div>
                   </div>
-
-                  <div className="px-3 pb-3 pt-0.5">
-                    <button
-                      type="button"
-                      onClick={() => addToCart(product)}
-                      className="w-full py-2 px-3 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>
-                        Add {presets ? `${selectedWt} ${product.unit}` : 'to Cart'}
-                      </span>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Right Side: Sticky Shopping Cart & Payment Panel */}
+      {/* Right Side: Full-Height Shopping Cart & Checkout Panel */}
       <aside
         id="billing-cart-panel"
         aria-label="Billing panel"
-        className="w-full lg:w-[375px] xl:w-[420px] 2xl:w-[445px] shrink-0 lg:sticky lg:top-[60px] eb-card overflow-hidden flex flex-col lg:max-h-[calc(100vh-7.5rem)]"
+        className="w-full lg:w-[370px] xl:w-[400px] 2xl:w-[420px] shrink-0 lg:h-full lg:min-h-0 eb-card overflow-hidden flex flex-col"
       >
         {/* Walk-in vs Orders Toggle */}
-        <div className="p-3 border-b border-[#EAE7F0] dark:border-[#2E2842] flex items-center justify-between gap-2.5 bg-[#F7F7FB] dark:bg-[#151220]">
-          <div className="flex items-center gap-1 p-1 rounded-[10px] bg-[#E9E2FF]/70 dark:bg-[#2A233D] flex-1">
+        <div className="p-2.5 border-b border-[var(--eb-border)] flex items-center justify-between gap-2 bg-[var(--eb-bg)] shrink-0">
+          <div className="flex items-center gap-1 p-1 rounded-[9px] bg-[var(--eb-btn-secondary-bg)] border border-[var(--eb-border)] flex-1">
             <button
               type="button"
               onClick={() => setBillingMode('walkin')}
-              className={`flex-1 py-1.5 px-3 rounded-[8px] text-xs font-semibold transition-colors whitespace-nowrap ${
+              className={`flex-1 py-1.5 px-2.5 rounded-[7px] text-xs font-medium transition-colors whitespace-nowrap ${
                 billingMode === 'walkin'
-                  ? 'bg-[#7656C9] text-white shadow-sm'
-                  : 'text-[#4B3194] dark:text-[#D9CEFF] hover:text-[#302A40]'
+                  ? 'bg-[var(--eb-accent)] text-white shadow-sm'
+                  : 'text-[var(--eb-text-muted)] hover:text-[var(--eb-text)]'
               }`}
             >
               Walk-in Bill
@@ -573,50 +586,50 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
             <button
               type="button"
               onClick={() => setBillingMode('order')}
-              className={`flex-1 py-1.5 px-3 rounded-[8px] text-xs font-semibold transition-colors whitespace-nowrap ${
+              className={`flex-1 py-1.5 px-2.5 rounded-[7px] text-xs font-medium transition-colors whitespace-nowrap ${
                 billingMode === 'order'
-                  ? 'bg-[#7656C9] text-white shadow-sm'
-                  : 'text-[#4B3194] dark:text-[#D9CEFF] hover:text-[#302A40]'
+                  ? 'bg-[var(--eb-accent)] text-white shadow-sm'
+                  : 'text-[var(--eb-text-muted)] hover:text-[var(--eb-text)]'
               }`}
             >
               Cake Orders
             </button>
           </div>
           {cart.length > 0 && (
-            <span className="px-2.5 py-1 rounded-[8px] bg-[#E9E2FF] dark:bg-[#2A233D] text-[#4B3194] dark:text-[#D9CEFF] text-xs font-bold tabular-nums shrink-0">
+            <span className="px-2.5 py-1 rounded-[8px] bg-[var(--eb-accent-light)] text-[var(--eb-accent)] border border-[var(--eb-accent-border)] text-xs font-bold tabular-nums shrink-0">
               {cart.length} {cart.length === 1 ? 'item' : 'items'}
             </span>
           )}
         </div>
 
-        {/* Scrollable Cart, Totals, Customer & Payment Sections */}
-        <div className="flex-1 overflow-y-auto thin-scrollbar divide-y divide-[#EAE7F0] dark:divide-[#2E2842]">
+        {/* Scrollable Cart Items, Payment Options & Customer Details */}
+        <div className="flex-1 min-h-0 overflow-y-auto thin-scrollbar divide-y divide-[var(--eb-border)]">
           {/* Cart Items */}
-          <div className="p-4">
+          <div className="p-3">
             {cart.length === 0 ? (
-              <div className="py-6 text-center">
-                <ShoppingCart className="w-8 h-8 mx-auto text-[#817A91]/50 mb-2" />
-                <p className="text-sm font-semibold text-[#302A40] dark:text-[#F3F1FA]">
+              <div className="py-5 text-center">
+                <ShoppingCart className="w-7 h-7 mx-auto text-[var(--eb-text-muted)]/50 mb-1.5" />
+                <p className="text-[13px] font-semibold text-[var(--eb-text)]">
                   Cart is empty
                 </p>
-                <p className="text-xs font-medium text-[#817A91] mt-0.5">
+                <p className="text-[12px] font-normal text-[var(--eb-text-muted)] mt-0.5">
                   Select products on the left to start billing.
                 </p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {cart.map((item) => {
                   const step = item.unit === 'KG' || item.unit === 'Gram' ? 0.5 : 1;
                   return (
                     <div
                       key={item.productId}
-                      className="flex items-start justify-between gap-2 pb-2.5 border-b border-[#EAE7F0] dark:border-[#2E2842] last:border-0 last:pb-0"
+                      className="flex items-start justify-between gap-2 pb-2 border-b border-[var(--eb-border)] last:border-0 last:pb-0"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold text-[#302A40] dark:text-[#F3F1FA] truncate">
+                        <p className="text-[13px] font-semibold text-[var(--eb-text)] truncate">
                           {item.productName}
                         </p>
-                        <p className="text-[11px] font-medium text-[#817A91] tabular-nums mt-0.5">
+                        <p className="text-[11px] font-normal text-[var(--eb-text-muted)] tabular-nums mt-0.5">
                           {formatMoneyExact(item.unitPrice, sym)} / {item.unit}
                         </p>
                       </div>
@@ -626,7 +639,7 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
                           type="button"
                           onClick={() => updateCartQty(item.productId, item.quantity - step)}
                           aria-label="Decrease quantity"
-                          className="w-6 h-6 rounded-[8px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] flex items-center justify-center"
+                          className="w-6 h-6 rounded-[6px] bg-[var(--eb-btn-secondary-bg)] hover:bg-[var(--eb-border)] text-[var(--eb-btn-secondary-text)] border border-[var(--eb-border)] flex items-center justify-center"
                         >
                           <Minus className="w-3 h-3" />
                         </button>
@@ -639,26 +652,26 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
                             updateCartQty(item.productId, parseFloat(e.target.value))
                           }
                           aria-label={`Quantity for ${item.productName}`}
-                          className="w-14 text-center py-0.5 rounded-[8px] border border-[#EAE7F0] dark:border-[#2E2842] bg-[#F7F7FB] dark:bg-[#13101C] text-xs font-semibold tabular-nums focus:outline-none focus:border-[#7656C9]"
+                          className="w-12 text-center py-0.5 rounded-[6px] border border-[var(--eb-border)] bg-[var(--eb-bg)] text-xs font-semibold tabular-nums focus:outline-none focus:border-[var(--eb-accent)]"
                         />
                         <button
                           type="button"
                           onClick={() => updateCartQty(item.productId, item.quantity + step)}
                           aria-label="Increase quantity"
-                          className="w-6 h-6 rounded-[8px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] flex items-center justify-center"
+                          className="w-6 h-6 rounded-[6px] bg-[var(--eb-btn-secondary-bg)] hover:bg-[var(--eb-border)] text-[var(--eb-btn-secondary-text)] border border-[var(--eb-border)] flex items-center justify-center"
                         >
                           <Plus className="w-3 h-3" />
                         </button>
                       </div>
 
-                      <div className="text-right shrink-0 min-w-[74px]">
-                        <p className="font-display text-xs font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums">
+                      <div className="text-right shrink-0 min-w-[70px]">
+                        <p className="text-[13px] font-bold text-[var(--eb-text)] tabular-nums">
                           {formatMoneyExact(item.subtotal, sym)}
                         </p>
                         <button
                           type="button"
                           onClick={() => removeFromCart(item.productId)}
-                          className="text-[#817A91] hover:text-red-600 mt-0.5"
+                          className="p-1 rounded-[6px] text-rose-500 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 mt-0.5 transition-colors"
                           aria-label={`Remove ${item.productName}`}
                         >
                           <Trash2 className="w-3.5 h-3.5 inline" />
@@ -671,59 +684,13 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
             )}
           </div>
 
-          {/* Tax & Total Summary */}
-          <div className="p-4 space-y-2 text-xs bg-[#F7F7FB]/80 dark:bg-[#151220] tabular-nums">
-            <div className="flex justify-between font-medium text-[#817A91]">
-              <span>Subtotal</span>
-              <span className="font-semibold text-[#302A40] dark:text-[#E9E2FF]">
-                {formatMoneyExact(subtotal, sym)}
-              </span>
-            </div>
-
-            {settings.billing.allowDiscount && (
-              <div className="flex items-center justify-between gap-2 font-medium text-[#817A91]">
-                <label htmlFor="billing-discount" className="whitespace-nowrap text-[13px] font-semibold">
-                  Discount (%)
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    id="billing-discount"
-                    type="number"
-                    min={0}
-                    max={settings.billing.maxDiscountPercent || 100}
-                    value={discountPercent}
-                    onChange={(e) => setDiscountPercent(Number(e.target.value) || 0)}
-                    className="w-16 text-right px-2 py-1 rounded-[8px] border border-[#EAE7F0] dark:border-[#2E2842] bg-white dark:bg-[#1B1726] text-[13px] font-semibold text-[#302A40] dark:text-[#F3F1FA] focus:outline-none focus:border-[#7656C9]"
-                  />
-                  <span className="font-semibold text-emerald-700 dark:text-emerald-400 min-w-[64px] text-right">
-                    -{formatMoneyExact(discountAmount, sym)}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {settings.billing.gstEnabled && (
-              <div className="flex justify-between text-[13px] font-medium text-[#817A91]">
-                <span>GST ({taxRate}%)</span>
-                <span>{formatMoneyExact(taxAmount, sym)}</span>
-              </div>
-            )}
-
-            <div className="flex justify-between items-baseline pt-2 border-t border-[#EAE7F0] dark:border-[#2E2842] text-[#302A40] dark:text-[#F3F1FA]">
-              <span className="font-display text-[15px] font-bold">Grand Total</span>
-              <span className="font-display text-[22px] font-bold text-[#7656C9] dark:text-[#C5B3F7]">
-                {formatMoneyExact(grandTotal, sym)}
-              </span>
-            </div>
-          </div>
-
           {/* Payment Mode & Orders Options */}
-          <div className="p-4 space-y-3">
+          <div className="p-3 space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-[#302A40] dark:text-[#E9E2FF]">
+              <span className="text-[12px] font-semibold text-[var(--eb-text)]">
                 Payment Mode
               </span>
-              <span className="text-[13px] font-semibold text-[#817A91] tabular-nums">
+              <span className="text-[12px] font-normal text-[var(--eb-text-muted)] tabular-nums">
                 Payable: {formatMoneyExact(grandTotal, sym)}
               </span>
             </div>
@@ -735,10 +702,10 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
                     key={mode}
                     type="button"
                     onClick={() => setPaymentMode(mode)}
-                    className={`py-2 px-2 rounded-[10px] text-xs font-semibold border transition-colors whitespace-nowrap ${
+                    className={`py-1.5 px-2 rounded-[8px] text-xs font-medium border transition-colors whitespace-nowrap ${
                       paymentMode === mode
-                        ? 'bg-[#7656C9] border-[#7656C9] text-white'
-                        : 'bg-[#E9E2FF]/55 dark:bg-[#2A233D] border-[#EAE7F0] dark:border-[#2E2842] text-[#4B3194] dark:text-[#D9CEFF] hover:bg-[#E9E2FF]'
+                        ? 'bg-[var(--eb-accent)] border-[var(--eb-accent)] text-white shadow-sm'
+                        : 'bg-[var(--eb-surface)] border-[var(--eb-border)] text-[var(--eb-text)] hover:bg-[var(--eb-accent-light)]'
                     }`}
                   >
                     {mode}
@@ -748,11 +715,11 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
             </div>
 
             {billingMode === 'order' && paymentMode === 'Advance' && (
-              <div className="rounded-[12px] bg-[#F7F7FB] dark:bg-[#13101C] border border-[#EAE7F0] dark:border-[#2E2842] p-3 space-y-2 tabular-nums">
+              <div className="rounded-[10px] bg-[var(--eb-bg)] border border-[var(--eb-border)] p-2.5 space-y-1.5 tabular-nums">
                 <div className="flex items-center justify-between gap-2">
                   <label
                     htmlFor="advance-received"
-                    className="text-xs font-semibold text-[#302A40] dark:text-[#E9E2FF]"
+                    className="text-xs font-medium text-[var(--eb-text)]"
                   >
                     Advance Received ({sym})
                   </label>
@@ -762,7 +729,7 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
                         key={ratio}
                         type="button"
                         onClick={() => setAdvanceAmount(String(round2(grandTotal * ratio)))}
-                        className="px-2 py-0.5 rounded-[6px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] text-[10px] font-semibold"
+                        className="px-2 py-0.5 rounded-[6px] bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 text-[10px] font-semibold border border-emerald-200 dark:border-emerald-800/60 transition-colors"
                       >
                         {ratio * 100}%
                       </button>
@@ -778,18 +745,14 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
                   value={advanceAmount}
                   onChange={(e) => setAdvanceAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full px-3 py-1.5 rounded-[10px] border border-[#EAE7F0] dark:border-[#2E2842] bg-white dark:bg-[#1B1726] text-sm font-bold text-[#302A40] dark:text-[#F3F1FA] focus:outline-none focus:border-[#7656C9]"
+                  className="w-full px-3 py-1.5 rounded-[8px] border border-[var(--eb-border)] bg-[var(--eb-surface)] text-sm font-bold text-[var(--eb-text)] focus:outline-none focus:border-[var(--eb-accent)]"
                 />
-                <div className="text-xs font-medium space-y-1 pt-1">
-                  <div className="flex justify-between text-[#817A91]">
-                    <span>Total Order Amount</span>
-                    <span>{formatMoneyExact(grandTotal, sym)}</span>
-                  </div>
-                  <div className="flex justify-between text-emerald-700 dark:text-emerald-400">
+                <div className="text-xs font-normal space-y-0.5 pt-0.5">
+                  <div className="flex justify-between text-[#16A34A]">
                     <span>Advance Received</span>
                     <span>{formatMoneyExact(parsedAdvance, sym)}</span>
                   </div>
-                  <div className="flex justify-between font-display font-bold text-[#302A40] dark:text-[#F3F1FA]">
+                  <div className="flex justify-between font-bold text-[var(--eb-text)]">
                     <span>Remaining Balance</span>
                     <span>{formatMoneyExact(balanceAmount, sym)}</span>
                   </div>
@@ -798,41 +761,36 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
             )}
 
             {billingMode === 'order' && (
-              <div className="space-y-2.5 pt-1">
-                {/* Pickup vs Delivery Toggle */}
-                <div>
-                  <span className="block text-[11px] font-semibold text-[#302A40] dark:text-[#E9E2FF] mb-1">
-                    Order Fulfillment
-                  </span>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {(['Pickup', 'Delivery'] as FulfillmentType[]).map((ft) => {
-                      const Icon = ft === 'Pickup' ? Store : Truck;
-                      const active = fulfillmentType === ft;
-                      return (
-                        <button
-                          key={ft}
-                          type="button"
-                          onClick={() => setFulfillmentType(ft)}
-                          className={`py-1.5 px-3 rounded-[10px] text-xs font-semibold border inline-flex items-center justify-center gap-1.5 transition-colors ${
-                            active
-                              ? 'bg-[#7656C9] border-[#7656C9] text-white'
-                              : 'bg-[#F7F7FB] dark:bg-[#13101C] border-[#EAE7F0] dark:border-[#2E2842] text-[#817A91] hover:border-[#7656C9] hover:text-[#302A40]'
-                          }`}
-                        >
-                          <Icon className="w-3.5 h-3.5" />
-                          <span>{ft}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+              <div className="space-y-2 pt-0.5">
+                {/* Pickup vs Delivery Toggle + Order Status */}
+                <div className="grid grid-cols-2 gap-1.5">
+                  {(['Pickup', 'Delivery'] as FulfillmentType[]).map((ft) => {
+                    const Icon = ft === 'Pickup' ? Store : Truck;
+                    const active = fulfillmentType === ft;
+                    return (
+                      <button
+                        key={ft}
+                        type="button"
+                        onClick={() => setFulfillmentType(ft)}
+                        className={`py-1.5 px-2.5 rounded-[8px] text-xs font-medium border inline-flex items-center justify-center gap-1.5 transition-colors ${
+                          active
+                            ? 'bg-[var(--eb-accent)] border-[var(--eb-accent)] text-white shadow-sm'
+                            : 'bg-[var(--eb-surface)] border-[var(--eb-border)] text-[var(--eb-text-muted)] hover:border-[var(--eb-accent)] hover:text-[var(--eb-text)]'
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        <span>{ft}</span>
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {/* Schedule Date & Time */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label
                       htmlFor="order-delivery-date"
-                      className="block text-[13px] font-semibold text-[#302A40] dark:text-[#E9E2FF] mb-1"
+                      className="block text-[11px] font-medium text-[var(--eb-text-muted)] mb-1"
                     >
                       {fulfillmentType} Date *
                     </label>
@@ -841,13 +799,13 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
                       type="date"
                       value={deliveryDate}
                       onChange={(e) => setDeliveryDate(e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded-[10px] border border-[#EAE7F0] dark:border-[#2E2842] bg-[#F7F7FB] dark:bg-[#13101C] text-[13px] font-medium tabular-nums focus:outline-none focus:border-[#7656C9]"
+                      className="w-full px-2.5 py-1.5 rounded-[8px] border border-[var(--eb-border)] bg-[var(--eb-surface)] text-[12px] font-normal tabular-nums focus:outline-none focus:border-[var(--eb-accent)]"
                     />
                   </div>
                   <div>
                     <label
                       htmlFor="order-delivery-time"
-                      className="block text-[13px] font-semibold text-[#302A40] dark:text-[#E9E2FF] mb-1"
+                      className="block text-[11px] font-medium text-[var(--eb-text-muted)] mb-1"
                     >
                       {fulfillmentType} Time
                     </label>
@@ -856,26 +814,20 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
                       type="time"
                       value={deliveryTime}
                       onChange={(e) => setDeliveryTime(e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded-[10px] border border-[#EAE7F0] dark:border-[#2E2842] bg-[#F7F7FB] dark:bg-[#13101C] text-[13px] font-medium tabular-nums focus:outline-none focus:border-[#7656C9]"
+                      className="w-full px-2.5 py-1.5 rounded-[8px] border border-[var(--eb-border)] bg-[var(--eb-surface)] text-[12px] font-normal tabular-nums focus:outline-none focus:border-[var(--eb-accent)]"
                     />
                   </div>
                 </div>
 
                 {/* Cake Customization Notes */}
                 <div>
-                  <label
-                    htmlFor="order-custom-notes"
-                    className="block text-[13px] font-semibold text-[#302A40] dark:text-[#E9E2FF] mb-1"
-                  >
-                    Cake Customization Notes
-                  </label>
                   <textarea
                     id="order-custom-notes"
                     rows={2}
                     value={orderNotes}
                     onChange={(e) => setOrderNotes(e.target.value)}
-                    placeholder="Message on cake, eggless preference, icing flavor or theme notes..."
-                    className="w-full px-3 py-1.5 rounded-[10px] border border-[#EAE7F0] dark:border-[#2E2842] bg-[#F7F7FB] dark:bg-[#13101C] text-[13px] font-medium focus:outline-none focus:border-[#7656C9] resize-none"
+                    placeholder="Message on cake, eggless preference, icing flavor..."
+                    className="w-full px-2.5 py-1.5 rounded-[8px] border border-[var(--eb-border)] bg-[var(--eb-surface)] text-[12px] font-normal focus:outline-none focus:border-[var(--eb-accent)] resize-none"
                   />
                 </div>
               </div>
@@ -883,16 +835,16 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
           </div>
 
           {/* Customer Details */}
-          <div className="p-4 space-y-2.5">
+          <div className="p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[13px] font-semibold text-[#302A40] dark:text-[#E9E2FF]">
+              <span className="text-[12px] font-semibold text-[var(--eb-text)]">
                 Customer Details {billingMode === 'order' ? '(Required)' : '(Optional)'}
               </span>
               {(customerName || customerPhone || customerAddress) && (
                 <button
                   type="button"
                   onClick={clearCustomer}
-                  className="text-[11px] font-semibold text-[#7656C9] hover:underline"
+                  className="text-[11px] font-medium text-rose-600 dark:text-rose-400 hover:underline"
                 >
                   Clear
                 </button>
@@ -900,7 +852,7 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
             </div>
 
             <div className="relative">
-              <UserPlus className="w-3.5 h-3.5 text-[#817A91] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <UserPlus className="w-3.5 h-3.5 text-[var(--eb-text-muted)] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={customerSearch}
@@ -910,22 +862,27 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
                   setCustomerSearch(e.target.value);
                   setShowCustomerDropdown(true);
                 }}
-                placeholder="Search existing customer by name or phone..."
-                className="w-full pl-8 pr-3 py-1.5 rounded-[10px] border border-[#EAE7F0] dark:border-[#2E2842] bg-[#F7F7FB] dark:bg-[#13101C] text-xs font-medium focus:outline-none focus:border-[#7656C9]"
+                placeholder="Search customer by name or phone..."
+                className="w-full pl-8 pr-3 py-1.5 rounded-[8px] border border-[var(--eb-border)] bg-[var(--eb-surface)] text-xs font-normal focus:outline-none focus:border-[var(--eb-accent)]"
               />
               {showCustomerDropdown && matchingCustomers.length > 0 && (
-                <div className="absolute left-0 right-0 mt-1 z-30 rounded-[12px] bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] shadow-[0_10px_28px_rgba(48,42,64,0.12)] max-h-40 overflow-y-auto divide-y divide-[#EAE7F0] dark:divide-[#2E2842]">
+                <div className="absolute left-0 right-0 mt-1 z-30 rounded-[12px] bg-[var(--eb-surface)] border border-[var(--eb-border)] shadow-lg max-h-44 overflow-y-auto divide-y divide-[var(--eb-border)]">
                   {matchingCustomers.map((c) => (
                     <button
                       key={c.id}
                       type="button"
                       onMouseDown={() => selectCustomer(c)}
-                      className="w-full text-left px-3 py-2 hover:bg-[#F7F7FB] dark:hover:bg-[#231E33] text-xs flex justify-between items-center gap-2"
+                      className="w-full text-left px-3 py-2 hover:bg-[var(--eb-accent-light)] text-xs flex justify-between items-center gap-2"
                     >
-                      <span className="font-semibold text-[#302A40] dark:text-[#F3F1FA] truncate">
-                        {c.name}
-                      </span>
-                      <span className="text-[#817A91] tabular-nums shrink-0">{c.phone}</span>
+                      <div className="min-w-0">
+                        <span className="font-semibold text-[var(--eb-text)] truncate block">
+                          {c.name}
+                        </span>
+                        <span className="text-[10px] text-[var(--eb-text-muted)] tabular-nums">
+                          {c.totalOrders} {c.totalOrders === 1 ? 'order' : 'orders'} · {formatCurrency(c.totalSpent, sym)}
+                        </span>
+                      </div>
+                      <span className="text-[var(--eb-text-muted)] tabular-nums shrink-0">{c.phone}</span>
                     </button>
                   ))}
                 </div>
@@ -938,14 +895,14 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
                 placeholder={billingMode === 'order' ? 'Customer Name *' : 'Customer Name'}
-                className="px-3 py-1.5 rounded-[10px] border border-[#EAE7F0] dark:border-[#2E2842] bg-white dark:bg-[#1B1726] text-xs font-medium focus:outline-none focus:border-[#7656C9]"
+                className="px-2.5 py-1.5 rounded-[8px] border border-[var(--eb-border)] bg-[var(--eb-surface)] text-xs font-normal focus:outline-none focus:border-[var(--eb-accent)]"
               />
               <input
                 type="tel"
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
                 placeholder={billingMode === 'order' ? 'Phone Number *' : 'Phone Number'}
-                className="px-3 py-1.5 rounded-[10px] border border-[#EAE7F0] dark:border-[#2E2842] bg-white dark:bg-[#1B1726] text-xs font-medium tabular-nums focus:outline-none focus:border-[#7656C9]"
+                className="px-2.5 py-1.5 rounded-[8px] border border-[var(--eb-border)] bg-[var(--eb-surface)] text-xs font-normal tabular-nums focus:outline-none focus:border-[var(--eb-accent)]"
               />
             </div>
             <input
@@ -957,32 +914,79 @@ export function BillingPage({ onPrintReceipt }: BillingPageProps) {
                   ? 'Delivery Address *'
                   : 'Customer Address (Optional)'
               }
-              className="w-full px-3 py-1.5 rounded-[10px] border border-[#EAE7F0] dark:border-[#2E2842] bg-white dark:bg-[#1B1726] text-xs font-medium focus:outline-none focus:border-[#7656C9]"
+              className="w-full px-2.5 py-1.5 rounded-[8px] border border-[var(--eb-border)] bg-[var(--eb-surface)] text-xs font-normal focus:outline-none focus:border-[var(--eb-accent)]"
             />
           </div>
         </div>
 
-        {/* Sticky Footer: Clear Cart & SAVE & PRINT */}
-        <div className="p-3 sm:p-3.5 border-t border-[#EAE7F0] dark:border-[#2E2842] bg-white dark:bg-[#1B1726] flex items-center gap-2 sm:gap-2.5">
-          <button
-            type="button"
-            disabled={submitting || cart.length === 0}
-            onClick={handleClearCart}
-            className="px-3 sm:px-3.5 py-3 rounded-[12px] bg-[#E9E2FF] hover:bg-[#DDD3FF] disabled:opacity-45 disabled:cursor-not-allowed text-[#4B3194] dark:bg-[#2A233D] dark:text-[#E9E2FF] font-display text-[14px] font-semibold inline-flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
-          >
-            <Trash2 className="w-4 h-4" />
-            <span>Clear</span>
-          </button>
+        {/* Pinned Totals + Clear & SAVE & PRINT Checkout Footer */}
+        <div className="border-t border-[var(--eb-border)] bg-[var(--eb-surface)] shrink-0">
+          <div className="px-3.5 py-2.5 space-y-1.5 text-xs bg-[var(--eb-bg)]/80 border-b border-[var(--eb-border)] tabular-nums">
+            <div className="flex justify-between font-normal text-[var(--eb-text-muted)]">
+              <span>Subtotal</span>
+              <span className="font-semibold text-[var(--eb-text)]">
+                {formatMoneyExact(subtotal, sym)}
+              </span>
+            </div>
 
-          <button
-            type="button"
-            disabled={submitting || cart.length === 0}
-            onClick={handleSaveAndPrint}
-            className="flex-1 min-w-0 py-3 px-3 sm:px-4 rounded-[12px] bg-[#7656C9] hover:bg-[#6947BB] disabled:bg-[#EAE7F0] dark:disabled:bg-[#2A233D] disabled:text-[#817A91] text-white font-display text-[14px] font-bold tracking-wide inline-flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(118,86,201,0.28)] transition-colors whitespace-nowrap"
-          >
-            <Printer className="w-4 h-4 shrink-0" />
-            <span>{submitting ? 'SAVING...' : 'SAVE & PRINT'}</span>
-          </button>
+            {settings.billing.allowDiscount && (
+              <div className="flex items-center justify-between gap-2 font-normal text-[var(--eb-text-muted)]">
+                <label htmlFor="billing-discount" className="whitespace-nowrap text-[12px] font-medium text-[var(--eb-text)]">
+                  Discount (%)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="billing-discount"
+                    type="number"
+                    min={0}
+                    max={settings.billing.maxDiscountPercent || 100}
+                    value={discountPercent}
+                    onChange={(e) => setDiscountPercent(Number(e.target.value) || 0)}
+                    className="w-14 text-right px-2 py-0.5 rounded-[7px] border border-[var(--eb-border)] bg-[var(--eb-surface)] text-[12px] font-semibold text-[var(--eb-text)] focus:outline-none focus:border-[var(--eb-accent)]"
+                  />
+                  <span className="font-semibold text-[#16A34A] min-w-[60px] text-right">
+                    -{formatMoneyExact(discountAmount, sym)}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {settings.billing.gstEnabled && (
+              <div className="flex justify-between text-[12px] font-normal text-[var(--eb-text-muted)]">
+                <span>GST ({taxRate}%)</span>
+                <span>{formatMoneyExact(taxAmount, sym)}</span>
+              </div>
+            )}
+
+            <div className="flex justify-between items-baseline pt-1.5 border-t border-[var(--eb-border)] text-[var(--eb-text)]">
+              <span className="text-[14px] font-semibold">Grand Total</span>
+              <span className="text-[22px] font-bold text-[var(--eb-accent)] leading-none">
+                {formatMoneyExact(grandTotal, sym)}
+              </span>
+            </div>
+          </div>
+
+          <div className="p-2.5 flex items-center gap-2">
+            <button
+              type="button"
+              disabled={submitting || cart.length === 0}
+              onClick={handleClearCart}
+              className="px-3 py-2 rounded-[9px] bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 disabled:opacity-45 disabled:cursor-not-allowed text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 text-[13px] font-medium inline-flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Clear</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={submitting || cart.length === 0}
+              onClick={handleSaveAndPrint}
+              className="flex-1 min-w-0 py-2 px-3 rounded-[9px] bg-emerald-600 hover:bg-emerald-700 disabled:bg-[var(--eb-border)] disabled:text-[var(--eb-text-muted)] text-white text-[13px] font-semibold tracking-wide inline-flex items-center justify-center gap-2 shadow-sm transition-colors whitespace-nowrap"
+            >
+              <Printer className="w-4 h-4 shrink-0" />
+              <span>{submitting ? 'SAVING...' : 'SAVE & PRINT'}</span>
+            </button>
+          </div>
         </div>
       </aside>
     </div>

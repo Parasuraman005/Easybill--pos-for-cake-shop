@@ -44,34 +44,34 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto flex items-start gap-3 rounded-[12px] border p-3.5 shadow-[0_6px_20px_rgba(48,42,64,0.08)] transition-all duration-200 bg-white dark:bg-[#1B1726] text-[#302A40] dark:text-[#F3F1FA] ${
+            className={`pointer-events-auto flex items-start gap-3 rounded-[12px] border p-3.5 shadow-md transition-all duration-200 bg-[var(--eb-surface)] text-[var(--eb-text)] ${
               toast.variant === 'success'
                 ? 'border-emerald-200 dark:border-emerald-800/60'
                 : toast.variant === 'warning'
                 ? 'border-amber-200 dark:border-amber-800/60'
                 : toast.variant === 'error'
                 ? 'border-red-200 dark:border-red-800/60'
-                : 'border-blue-200 dark:border-blue-800/60'
+                : 'border-[var(--eb-accent-border)]'
             }`}
           >
             <div className="shrink-0 mt-0.5">
               {toast.variant === 'success' && (
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                <CheckCircle2 className="w-5 h-5 text-[#16A34A]" />
               )}
               {toast.variant === 'warning' && (
-                <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                <AlertTriangle className="w-5 h-5 text-[#F59E0B]" />
               )}
               {toast.variant === 'error' && (
-                <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                <AlertCircle className="w-5 h-5 text-[#DC2626]" />
               )}
               {toast.variant === 'info' && (
-                <Info className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <Info className="w-5 h-5 text-[var(--eb-accent)]" />
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-display text-[14px] font-semibold leading-snug">{toast.title}</p>
+              <p className="text-[14px] font-semibold leading-snug">{toast.title}</p>
               {toast.message && (
-                <p className="text-[13px] font-medium text-[#817A91] dark:text-[#A69FB8] mt-0.5 leading-relaxed">
+                <p className="text-[13px] font-normal text-[var(--eb-text-muted)] mt-0.5 leading-relaxed">
                   {toast.message}
                 </p>
               )}
@@ -79,7 +79,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               onClick={() => dismiss(toast.id)}
-              className="shrink-0 text-[#817A91] hover:text-[#302A40] dark:hover:text-white p-0.5 rounded-[8px]"
+              className="shrink-0 text-[var(--eb-text-muted)] hover:text-[var(--eb-text)] p-0.5 rounded-[8px]"
               aria-label="Dismiss notification"
             >
               <X className="w-4 h-4" />

@@ -13,6 +13,7 @@ import type {
   Bill,
   CakeOrder,
   CartItem,
+  CategoryItem,
   Customer,
   Expense,
   OrderPaymentEntry,
@@ -33,6 +34,16 @@ function mapUserRow(row: any): AuthUser {
     role: row.role,
     permissions: JSON.parse(row.permissions),
     active: Boolean(row.active),
+    createdAt: row.createdAt,
+  };
+}
+
+function mapCategoryRow(row: any): CategoryItem {
+  return {
+    id: row.id,
+    name: row.name,
+    isCustom: Boolean(row.isCustom),
+    sortOrder: Number(row.sortOrder || 0),
     createdAt: row.createdAt,
   };
 }
@@ -259,22 +270,40 @@ export function createApiApp(): express.Express {
     const allOrders = db.prepare('SELECT * FROM orders ORDER BY deliveryDate ASC, deliveryTime ASC').all().map(mapOrderRow);
     const allExpenses = db.prepare('SELECT * FROM expenses').all().map(mapExpenseRow);
 
+    const ordersById = new Map<string, CakeOrder>();
+    for (const o of allOrders) {
+      ordersById.set(o.id, o);
+    }
+
     let todaySales = 0;
     let todayBillCount = 0;
+    let todayCollections = 0;
     let monthlySales = 0;
     let monthlyBillCount = 0;
+    let monthlyCollections = 0;
+
+    const activeBills: Bill[] = [];
 
     for (const b of allBills) {
+      const linkedOrder = b.orderId ? ordersById.get(b.orderId) : undefined;
+      if (linkedOrder && linkedOrder.status === 'Cancelled') {
+        continue;
+      }
+      activeBills.push(b);
+
+      const collected = linkedOrder ? linkedOrder.advanceAmount : b.amountPaid;
       const localDate = new Date(b.createdAt);
       const bDate = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, '0')}-${String(localDate.getDate()).padStart(2, '0')}`;
       const bMonth = bDate.slice(0, 7);
 
       if (bDate === todayStr) {
         todaySales += b.grandTotal;
+        todayCollections += collected;
         todayBillCount += 1;
       }
       if (bMonth === monthPrefix) {
         monthlySales += b.grandTotal;
+        monthlyCollections += collected;
         monthlyBillCount += 1;
       }
     }
@@ -289,24 +318,151 @@ export function createApiApp(): express.Express {
     const pendingOrders = allOrders.filter(
       (o) => o.status !== 'Delivered' && o.status !== 'Cancelled'
     );
+    const pendingBalanceDue = allOrders
+      .filter((o) => o.status !== 'Cancelled' && o.balanceAmount > 0)
+      .reduce((sum, o) => sum + o.balanceAmount, 0);
 
-    const recentBills = allBills.slice(0, 6);
+    const recentBills = activeBills.slice(0, 6);
 
     res.json({
       todaySales: roundMoney(todaySales),
       todayBillCount,
+      todayCollections: roundMoney(todayCollections),
       monthlySales: roundMoney(monthlySales),
       monthlyBillCount,
+      monthlyCollections: roundMoney(monthlyCollections),
       monthlyExpenses: roundMoney(monthlyExpenses),
+      pendingBalanceDue: roundMoney(pendingBalanceDue),
       pendingOrders,
       recentBills,
     });
+  });
+
+  // Categories
+  app.get('/api/categories', authMiddleware, (_req: AuthenticatedRequest, res: Response) => {
+    const rows = db.prepare('SELECT * FROM categories ORDER BY isCustom ASC, sortOrder ASC, name ASC').all();
+    res.json(rows.map(mapCategoryRow));
+  });
+
+  app.post('/api/categories', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
+    const cleanName = String(req.body?.name || '').trim();
+    if (!cleanName) {
+      res.status(400).json({ error: 'Category name is required.' });
+      return;
+    }
+    if (cleanName.length > 40) {
+      res.status(400).json({ error: 'Category name must be 40 characters or fewer.' });
+      return;
+    }
+
+    const duplicate = db
+      .prepare('SELECT id FROM categories WHERE LOWER(name) = LOWER(?)')
+      .get(cleanName);
+    if (duplicate) {
+      res.status(409).json({ error: `Category "${cleanName}" already exists.` });
+      return;
+    }
+
+    const maxSortRow = db.prepare('SELECT MAX(sortOrder) as maxSort FROM categories').get() as {
+      maxSort: number | null;
+    };
+    const nextSort = Math.max(100, Number(maxSortRow?.maxSort || 99) + 1);
+    const id = `cat-${crypto.randomUUID().slice(0, 8)}`;
+    const nowIso = new Date().toISOString();
+
+    db.prepare(`
+      INSERT INTO categories (id, name, isCustom, sortOrder, createdAt)
+      VALUES (?, ?, 1, ?, ?)
+    `).run(id, cleanName, nextSort, nowIso);
+
+    const created = db.prepare('SELECT * FROM categories WHERE id = ?').get(id);
+    res.status(201).json(mapCategoryRow(created));
+  });
+
+  app.put('/api/categories/:id', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+    const existing = db.prepare('SELECT * FROM categories WHERE id = ?').get(id) as any;
+    if (!existing) {
+      res.status(404).json({ error: 'Category not found.' });
+      return;
+    }
+    if (!existing.isCustom) {
+      res.status(400).json({ error: 'Built-in categories cannot be renamed.' });
+      return;
+    }
+
+    const cleanName = String(req.body?.name || '').trim();
+    if (!cleanName) {
+      res.status(400).json({ error: 'Category name is required.' });
+      return;
+    }
+    if (cleanName.length > 40) {
+      res.status(400).json({ error: 'Category name must be 40 characters or fewer.' });
+      return;
+    }
+
+    const duplicate = db
+      .prepare('SELECT id FROM categories WHERE LOWER(name) = LOWER(?) AND id != ?')
+      .get(cleanName, id);
+    if (duplicate) {
+      res.status(409).json({ error: `Category "${cleanName}" already exists.` });
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
+    const tx = db.transaction(() => {
+      db.prepare('UPDATE categories SET name = ? WHERE id = ?').run(cleanName, id);
+      db.prepare('UPDATE products SET category = ?, updatedAt = ? WHERE category = ?').run(
+        cleanName,
+        nowIso,
+        existing.name
+      );
+    });
+    tx();
+
+    const updated = db.prepare('SELECT * FROM categories WHERE id = ?').get(id);
+    res.json(mapCategoryRow(updated));
+  });
+
+  app.delete('/api/categories/:id', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+    const existing = db.prepare('SELECT * FROM categories WHERE id = ?').get(id) as any;
+    if (!existing) {
+      res.status(404).json({ error: 'Category not found.' });
+      return;
+    }
+    if (!existing.isCustom) {
+      res.status(400).json({ error: 'Built-in categories cannot be deleted.' });
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
+    let reassignedCount = 0;
+    const tx = db.transaction(() => {
+      const resUpdate = db
+        .prepare('UPDATE products SET category = ?, updatedAt = ? WHERE category = ?')
+        .run('Others', nowIso, existing.name);
+      reassignedCount = resUpdate.changes;
+      db.prepare('DELETE FROM categories WHERE id = ?').run(id);
+    });
+    tx();
+
+    res.json({ success: true, reassignedCategory: 'Others', reassignedCount });
   });
 
   // Products
   app.get('/api/products', authMiddleware, (_req: AuthenticatedRequest, res: Response) => {
     const rows = db.prepare('SELECT * FROM products ORDER BY isFavorite DESC, name ASC').all();
     res.json(rows.map(mapProductRow));
+  });
+
+  app.get('/api/products/:id', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
+    const row = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
+    if (!row) {
+      res.status(404).json({ error: 'Product not found.' });
+      return;
+    }
+    res.json(mapProductRow(row));
   });
 
   app.post('/api/products', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
@@ -495,7 +651,14 @@ export function createApiApp(): express.Express {
         amountReceived,
         advanceAmount,
         balanceAmount,
-        paymentStatus: b.paymentStatus,
+        paymentStatus: linkedOrder
+          ? linkedOrder.balanceAmount <= 0
+            ? 'Paid'
+            : linkedOrder.advanceAmount > 0
+            ? 'Partial'
+            : 'Pending'
+          : b.paymentStatus,
+        paymentHistory: linkedOrder?.paymentHistory || [],
         orderStatus: linkedOrder?.status || null,
         fulfillmentType: linkedOrder?.fulfillmentType || null,
         deliveryDate: linkedOrder?.deliveryDate || null,
@@ -532,6 +695,7 @@ export function createApiApp(): express.Express {
         advanceAmount: o.advanceAmount,
         balanceAmount: o.balanceAmount,
         paymentStatus: o.balanceAmount <= 0 ? 'Paid' : o.advanceAmount > 0 ? 'Partial' : 'Pending',
+        paymentHistory: o.paymentHistory || [],
         orderStatus: o.status,
         fulfillmentType: o.fulfillmentType || 'Pickup',
         deliveryDate: o.deliveryDate,
@@ -814,23 +978,38 @@ export function createApiApp(): express.Express {
         ? fulfillmentType
         : existing.fulfillmentType || 'Pickup';
 
+    const cleanName = String(customerName ?? existing.customerName).trim();
+    const cleanPhone = String(customerPhone ?? existing.customerPhone).trim();
+    const cleanAddress = String(customerAddress ?? existing.customerAddress).trim();
     const nowIso = new Date().toISOString();
-    db.prepare(`
-      UPDATE orders
-      SET customerName = ?, customerPhone = ?, customerAddress = ?, fulfillmentType = ?, deliveryDate = ?, deliveryTime = ?, status = ?, notes = ?, updatedAt = ?
-      WHERE id = ?
-    `).run(
-      String(customerName ?? existing.customerName).trim(),
-      String(customerPhone ?? existing.customerPhone).trim(),
-      String(customerAddress ?? existing.customerAddress).trim(),
-      nextFulfillment,
-      String(deliveryDate ?? existing.deliveryDate),
-      String(deliveryTime ?? existing.deliveryTime),
-      status ?? existing.status,
-      String(notes ?? existing.notes).trim(),
-      nowIso,
-      id
-    );
+
+    const tx = db.transaction(() => {
+      db.prepare(`
+        UPDATE orders
+        SET customerName = ?, customerPhone = ?, customerAddress = ?, fulfillmentType = ?, deliveryDate = ?, deliveryTime = ?, status = ?, notes = ?, updatedAt = ?
+        WHERE id = ?
+      `).run(
+        cleanName,
+        cleanPhone,
+        cleanAddress,
+        nextFulfillment,
+        String(deliveryDate ?? existing.deliveryDate),
+        String(deliveryTime ?? existing.deliveryTime),
+        status ?? existing.status,
+        String(notes ?? existing.notes).trim(),
+        nowIso,
+        id
+      );
+
+      if (existing.billId) {
+        db.prepare(`
+          UPDATE bills
+          SET customerName = ?, customerPhone = ?, customerAddress = ?
+          WHERE id = ?
+        `).run(cleanName, cleanPhone, cleanAddress, existing.billId);
+      }
+    });
+    tx();
 
     const updated = db.prepare('SELECT * FROM orders WHERE id = ?').get(id);
     res.json(mapOrderRow(updated));
@@ -1127,12 +1306,29 @@ export function createApiApp(): express.Express {
     res.json({ success: true });
   });
 
-  // Backup Export & Restore
+  // Backup Summary, Export & Restore
+  app.get('/api/backup/summary', authMiddleware, (_req: AuthenticatedRequest, res: Response) => {
+    const countOf = (table: string) => {
+      const row = db.prepare(`SELECT COUNT(*) as cnt FROM ${table}`).get() as { cnt: number };
+      return Number(row?.cnt || 0);
+    };
+    res.json({
+      products: countOf('products'),
+      categories: countOf('categories'),
+      customers: countOf('customers'),
+      bills: countOf('bills'),
+      orders: countOf('orders'),
+      expenses: countOf('expenses'),
+      users: countOf('users'),
+    });
+  });
+
   app.get('/api/backup/export', authMiddleware, (_req: AuthenticatedRequest, res: Response) => {
     const backup = {
       version: 1,
       exportedAt: new Date().toISOString(),
       settings: getAllSettingsObject(),
+      categories: db.prepare('SELECT * FROM categories ORDER BY isCustom ASC, sortOrder ASC, name ASC').all().map(mapCategoryRow),
       products: db.prepare('SELECT * FROM products').all().map(mapProductRow),
       customers: db.prepare('SELECT * FROM customers').all(),
       bills: db.prepare('SELECT * FROM bills').all().map(mapBillRow),
@@ -1158,6 +1354,25 @@ export function createApiApp(): express.Express {
         for (const section of ['company', 'application', 'billing', 'printer']) {
           if (data.settings[section]) {
             upsert.run(section, JSON.stringify(data.settings[section]));
+          }
+        }
+      }
+
+      if (Array.isArray(data.categories)) {
+        db.prepare('DELETE FROM categories WHERE isCustom = 1').run();
+        const insertCat = db.prepare(`
+          INSERT OR IGNORE INTO categories (id, name, isCustom, sortOrder, createdAt)
+          VALUES (?, ?, ?, ?, ?)
+        `);
+        for (const c of data.categories) {
+          if (c?.name) {
+            insertCat.run(
+              c.id || `cat-${crypto.randomUUID().slice(0, 8)}`,
+              String(c.name).trim(),
+              c.isCustom ? 1 : 0,
+              Number(c.sortOrder || 100),
+              c.createdAt || new Date().toISOString()
+            );
           }
         }
       }

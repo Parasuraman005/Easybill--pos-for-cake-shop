@@ -18,11 +18,23 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('easybill_color_theme');
+          if (t && ['navy-teal', 'charcoal-orange', 'emerald-white', 'midnight-gold'].indexOf(t) !== -1) {
+            document.documentElement.setAttribute('data-theme', t);
+          } else {
+            document.documentElement.setAttribute('data-theme', 'navy-teal');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body class="bg-[#F7F7FB] text-[#302A40] font-medium antialiased selection:bg-[#7656C9]/15 selection:text-[#302A40] dark:bg-[#13101C] dark:text-[#F3F1FA]">
+  <body class="bg-[var(--eb-bg)] text-[var(--eb-text)] font-normal antialiased selection:bg-[var(--eb-accent)]/20 selection:text-[var(--eb-text)]">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

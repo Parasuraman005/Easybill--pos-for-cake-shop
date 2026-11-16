@@ -1,7 +1,14 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { formatDateValue, formatMoneyExact, formatTimeValue, formatYMDToDMY } from './format';
+import { formatDateValue, formatMoneyExact, formatTimeValue, formatYMD } from './format';
+import { THEME_PRESETS, getStoredThemePreset } from './theme';
 import type { AllSettings, SalesTransaction } from '../types';
+
+function hexToRgb(hex: string): [number, number, number] {
+  const clean = hex.replace('#', '');
+  const num = parseInt(clean, 16);
+  return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+}
 
 let cachedRegularFontBase64: string | null = null;
 let cachedBoldFontBase64: string | null = null;
@@ -108,6 +115,15 @@ export async function generateSalesHistoryPDF({
   const { regular, bold } = await ensurePdfFontsLoaded();
   const logoDataUrl = await loadLogoAsPngDataUrl(settings.company.logo);
 
+  const activeThemeId = settings.application.colorTheme || getStoredThemePreset();
+  const preset = THEME_PRESETS.find((t) => t.id === activeThemeId) || THEME_PRESETS[0];
+  const primaryRgb = hexToRgb(preset.light.primary);
+  const accentRgb = hexToRgb(preset.light.accent);
+  const accentTextRgb = hexToRgb(preset.light.accentText);
+  const mutedRgb = hexToRgb(preset.light.textMuted);
+  const borderRgb = hexToRgb(preset.light.border);
+  const bgRgb = hexToRgb(preset.light.bg);
+
   const doc = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
@@ -122,11 +138,12 @@ export async function generateSalesHistoryPDF({
   doc.setFont('DejaVuSans', 'normal');
 
   const sym = settings.application.currencySymbol || '₹';
+  const dateFmt = settings.application.dateFormat || 'DD-MM-YYYY';
   const now = new Date();
-  const generatedDateStr = formatDateValue(now, 'DD-MM-YYYY');
+  const generatedDateStr = formatDateValue(now, dateFmt);
   const generatedTimeStr = formatTimeValue(now);
-  const fromDisplay = formatYMDToDMY(fromDate);
-  const toDisplay = formatYMDToDMY(toDate);
+  const fromDisplay = formatYMD(fromDate, dateFmt);
+  const toDisplay = formatYMD(toDate, dateFmt);
 
   const totalSalesAmount = transactions.reduce((acc, t) => acc + t.grandTotal, 0);
   const totalSubtotal = transactions.reduce((acc, t) => acc + t.subtotal, 0);
@@ -139,15 +156,15 @@ export async function generateSalesHistoryPDF({
   const pageWidth = doc.internal.pageSize.getWidth(); // 297mm
   const marginX = 10;
 
-  // Top Lavender Accent Strip
-  doc.setFillColor(118, 86, 201); // #7656C9
+  // Top Theme Accent Strip
+  doc.setFillColor(...accentRgb);
   doc.rect(0, 0, pageWidth, 3, 'F');
 
   // Company Header (Left)
   let textStartX = marginX;
   if (logoDataUrl) {
     try {
-      doc.setDrawColor(234, 231, 240);
+      doc.setDrawColor(...borderRgb);
       doc.setFillColor(255, 255, 255);
       doc.roundedRect(marginX, 8, 15, 15, 2, 2, 'FD');
       doc.addImage(logoDataUrl, 'PNG', marginX + 1, 9, 13, 13);
@@ -160,12 +177,12 @@ export async function generateSalesHistoryPDF({
   const companyName = settings.company.name || 'Easy Bill Bakery';
   doc.setFont('DejaVuSans', 'bold');
   doc.setFontSize(13);
-  doc.setTextColor(48, 42, 64); // #302A40
+  doc.setTextColor(...primaryRgb);
   doc.text(companyName, textStartX, 12.5);
 
   doc.setFont('DejaVuSans', 'normal');
   doc.setFontSize(8);
-  doc.setTextColor(129, 122, 145); // #817A91
+  doc.setTextColor(...mutedRgb);
   const contactParts: string[] = [];
   if (settings.company.phone) contactParts.push(`Ph: ${settings.company.phone}`);
   if (settings.company.email) contactParts.push(settings.company.email);
@@ -182,15 +199,15 @@ export async function generateSalesHistoryPDF({
   const rightX = pageWidth - marginX;
   doc.setFont('DejaVuSans', 'bold');
   doc.setFontSize(14);
-  doc.setTextColor(118, 86, 201); // #7656C9
+  doc.setTextColor(...accentTextRgb);
   doc.text('Sales History Report', rightX, 12.5, { align: 'right' });
 
   doc.setFont('DejaVuSans', 'normal');
   doc.setFontSize(8.2);
-  doc.setTextColor(48, 42, 64);
+  doc.setTextColor(...primaryRgb);
   doc.text(`Period: ${fromDisplay} to ${toDisplay}`, rightX, 17.8, { align: 'right' });
 
-  doc.setTextColor(129, 122, 145);
+  doc.setTextColor(...mutedRgb);
   doc.text(`Generated: ${generatedDateStr} ${generatedTimeStr}`, rightX, 22.3, { align: 'right' });
   if (searchQuery && searchQuery.trim()) {
     doc.text(`Search Filter: "${searchQuery.trim()}"`, rightX, 26.5, { align: 'right' });
@@ -199,13 +216,13 @@ export async function generateSalesHistoryPDF({
   // Summary Banner
   const bannerY = 29;
   const bannerW = pageWidth - marginX * 2;
-  doc.setFillColor(247, 247, 251); // #F7F7FB
-  doc.setDrawColor(234, 231, 240); // #EAE7F0
+  doc.setFillColor(...bgRgb);
+  doc.setDrawColor(...borderRgb);
   doc.roundedRect(marginX, bannerY, bannerW, 13, 2, 2, 'FD');
 
   doc.setFont('DejaVuSans', 'normal');
   doc.setFontSize(7.5);
-  doc.setTextColor(129, 122, 145);
+  doc.setTextColor(...mutedRgb);
   doc.text('Total Sales Amount (Selected Period)', marginX + 4, bannerY + 4.8);
   doc.text('Transactions', marginX + 82, bannerY + 4.8);
   doc.text('Total Received', marginX + 132, bannerY + 4.8);
@@ -213,10 +230,10 @@ export async function generateSalesHistoryPDF({
 
   doc.setFont('DejaVuSans', 'bold');
   doc.setFontSize(10.5);
-  doc.setTextColor(118, 86, 201);
+  doc.setTextColor(...accentTextRgb);
   doc.text(formatMoneyExact(totalSalesAmount, sym), marginX + 4, bannerY + 10.3);
 
-  doc.setTextColor(48, 42, 64);
+  doc.setTextColor(...primaryRgb);
   doc.text(String(transactions.length), marginX + 82, bannerY + 10.3);
   doc.text(formatMoneyExact(totalReceived, sym), marginX + 132, bannerY + 10.3);
   doc.text(formatMoneyExact(totalBalance, sym), marginX + 195, bannerY + 10.3);
@@ -243,7 +260,7 @@ export async function generateSalesHistoryPDF({
 
   const body = transactions.map((tx, idx) => {
     const refText = tx.orderNumber ? `${tx.billNumber}\n(${tx.orderNumber})` : tx.billNumber;
-    const txDateText = `${formatDateValue(tx.createdAt, 'DD-MM-YYYY')}\n${formatTimeValue(tx.createdAt)}`;
+    const txDateText = `${formatDateValue(tx.createdAt, dateFmt)}\n${formatTimeValue(tx.createdAt)}`;
     return [
       String(idx + 1),
       refText,
@@ -297,8 +314,8 @@ export async function generateSalesHistoryPDF({
       font: 'DejaVuSans',
       fontSize: 6.6,
       cellPadding: { top: 1.8, right: 1.2, bottom: 1.8, left: 1.2 },
-      textColor: [48, 42, 64],
-      lineColor: [234, 231, 240],
+      textColor: primaryRgb,
+      lineColor: borderRgb,
       lineWidth: 0.2,
       valign: 'top',
       overflow: 'linebreak',
@@ -307,7 +324,7 @@ export async function generateSalesHistoryPDF({
       font: 'DejaVuSans',
       fontStyle: 'bold',
       fontSize: 6.7,
-      fillColor: [118, 86, 201], // #7656C9
+      fillColor: primaryRgb,
       textColor: [255, 255, 255],
       halign: 'left',
       valign: 'middle',
@@ -317,12 +334,12 @@ export async function generateSalesHistoryPDF({
       font: 'DejaVuSans',
       fontStyle: 'bold',
       fontSize: 6.8,
-      fillColor: [233, 226, 255], // #E9E2FF
-      textColor: [48, 42, 64],
+      fillColor: bgRgb,
+      textColor: primaryRgb,
       valign: 'middle',
     },
     alternateRowStyles: {
-      fillColor: [247, 247, 251], // #F7F7FB
+      fillColor: bgRgb,
     },
     columnStyles: {
       0: { cellWidth: 8, halign: 'center' },
@@ -358,13 +375,13 @@ export async function generateSalesHistoryPDF({
   const pageHeight = doc.internal.pageSize.getHeight(); // 210mm
   for (let i = 1; i <= totalPages; i += 1) {
     doc.setPage(i);
-    doc.setDrawColor(234, 231, 240);
+    doc.setDrawColor(...borderRgb);
     doc.setLineWidth(0.25);
     doc.line(marginX, pageHeight - 11, pageWidth - marginX, pageHeight - 11);
 
     doc.setFont('DejaVuSans', 'normal');
     doc.setFontSize(7.5);
-    doc.setTextColor(129, 122, 145);
+    doc.setTextColor(...mutedRgb);
     doc.text(`${companyName} · Sales History Report`, marginX, pageHeight - 6.5);
     doc.text(`Period: ${fromDisplay} to ${toDisplay}`, pageWidth / 2, pageHeight - 6.5, {
       align: 'center',

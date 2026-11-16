@@ -71,32 +71,34 @@ export function DashboardPage({ onNavigate, onPrintReceipt }: DashboardPageProps
 
   if (loading) {
     return (
-      <div className="space-y-6 animate-pulse">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="flex flex-col gap-4 lg:h-full lg:min-h-0 animate-pulse">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 shrink-0">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-28 eb-card" />
+            <div key={i} className="h-24 eb-card" />
           ))}
         </div>
-        <div className="h-48 eb-card" />
-        <div className="h-64 eb-card" />
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <div className="lg:col-span-5 h-64 lg:h-full eb-card" />
+          <div className="lg:col-span-7 h-64 lg:h-full eb-card" />
+        </div>
       </div>
     );
   }
 
   if (loadError && !data) {
     return (
-      <div className="eb-card p-10 text-center space-y-3">
-        <AlertCircle className="w-9 h-9 mx-auto text-rose-500" />
+      <div className="eb-card p-10 text-center space-y-3 my-auto max-w-lg mx-auto">
+        <AlertCircle className="w-9 h-9 mx-auto text-[#DC2626]" />
         <div>
-          <p className="font-display text-base font-bold text-[#302A40] dark:text-[#F3F1FA]">
+          <p className="text-[18px] font-semibold text-[var(--eb-text)]">
             Unable to load dashboard
           </p>
-          <p className="text-xs font-medium text-[#817A91] mt-1">{loadError}</p>
+          <p className="text-[12px] font-normal text-[var(--eb-text-muted)] mt-1">{loadError}</p>
         </div>
         <button
           type="button"
           onClick={loadDashboard}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-xs font-semibold transition-colors"
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] bg-blue-600 hover:bg-blue-700 text-white text-[14px] font-medium shadow-sm transition-colors whitespace-nowrap shrink-0"
         >
           <RotateCcw className="w-3.5 h-3.5" />
           <span>Retry</span>
@@ -116,190 +118,223 @@ export function DashboardPage({ onNavigate, onPrintReceipt }: DashboardPageProps
   };
 
   return (
-    <div className="space-y-6">
-      {/* A. Business Summary Cards — 3 cards in 1 row */}
-      <section aria-label="Business summary">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="flex flex-col gap-3.5 lg:h-full lg:min-h-0 lg:overflow-hidden">
+      {/* A. Business Summary Cards — 3 cards in 1 compact row */}
+      <section aria-label="Business summary" className="shrink-0">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
           {/* Card 1: Today's Total Sales */}
-          <div className="eb-card p-5 flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[13px] font-semibold text-[#817A91] dark:text-[#A69FB8]">
-                Today&apos;s Total Sales
-              </p>
-              <p className="mt-2 font-display text-[26px] sm:text-[28px] leading-tight font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums">
-                {formatCurrency(summary.todaySales, sym)}
-              </p>
-              <p className="mt-1.5 text-[13px] font-medium text-[#817A91] dark:text-[#A69FB8] tabular-nums">
-                {summary.todayBillCount} {summary.todayBillCount === 1 ? 'bill' : 'bills'} generated today
-              </p>
-            </div>
-            <div className="w-11 h-11 rounded-[12px] bg-[#E9E2FF] dark:bg-[#7656C9]/25 text-[#7656C9] dark:text-[#C5B3F7] flex items-center justify-center shrink-0">
-              <TrendingUp className="w-5 h-5" />
-            </div>
-          </div>
-
-          {/* Card 2: Monthly Total Sales */}
-          <div className="eb-card p-5 flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[13px] font-semibold text-[#817A91] dark:text-[#A69FB8]">
-                Monthly Total Sales
-              </p>
-              <p className="mt-2 font-display text-[26px] sm:text-[28px] leading-tight font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums">
-                {formatCurrency(summary.monthlySales, sym)}
-              </p>
-              <p className="mt-1.5 text-[13px] font-medium text-[#817A91] dark:text-[#A69FB8] tabular-nums">
-                {summary.monthlyBillCount} completed {summary.monthlyBillCount === 1 ? 'bill' : 'bills'} this month
-              </p>
-            </div>
-            <div className="w-11 h-11 rounded-[12px] bg-[#7656C9] text-white flex items-center justify-center shrink-0 shadow-[0_4px_12px_rgba(118,86,201,0.25)]">
-              <CalendarRange className="w-5 h-5" />
-            </div>
-          </div>
-
-          {/* Card 3: Monthly Total Expenses */}
-          <div className="eb-card p-5 flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[13px] font-semibold text-[#817A91] dark:text-[#A69FB8]">
-                Monthly Total Expenses
-              </p>
-              <p className="mt-2 font-display text-[26px] sm:text-[28px] leading-tight font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums">
-                {formatCurrency(summary.monthlyExpenses, sym)}
-              </p>
-              <p className="mt-1.5 text-[13px] font-medium text-[#817A91] dark:text-[#A69FB8]">
-                Recorded for current month
-              </p>
-            </div>
-            <div className="w-11 h-11 rounded-[12px] bg-[#F3EFFE] dark:bg-[#2A233D] text-[#5B3FA8] dark:text-[#C5B3F7] flex items-center justify-center shrink-0">
-              <Wallet className="w-5 h-5" />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* B. Pending Orders — Horizontally Scrollable Cards */}
-      <section aria-label="Pending orders">
-        <div className="flex items-center justify-between gap-3 mb-3">
-          <div className="flex items-center gap-2">
-            <h2 className="font-display text-[17px] sm:text-[19px] font-semibold text-[#302A40] dark:text-[#F3F1FA]">
-              Pending Orders
-            </h2>
-            <span className="text-[13px] font-medium text-[#817A91] dark:text-[#A69FB8] tabular-nums">
-              · {summary.pendingOrders.length} active
-            </span>
-          </div>
           <button
             type="button"
-            onClick={() => onNavigate('orders')}
-            className="inline-flex items-center gap-1 text-[14px] font-semibold text-[#7656C9] hover:text-[#6947BB] dark:text-[#C5B3F7] whitespace-nowrap shrink-0"
+            onClick={() => onNavigate('sales')}
+            className="eb-card px-4 py-3.5 flex items-center justify-between gap-3 text-left hover:border-[var(--eb-accent)]/60 transition-colors group"
           >
-            <span>Manage Orders</span>
-            <ArrowRight className="w-4 h-4" />
+            <div className="min-w-0">
+              <p className="text-[12px] font-medium text-[var(--eb-text-muted)] group-hover:text-[var(--eb-accent-text)] transition-colors">
+                Today&apos;s Total Sales
+              </p>
+              <p className="mt-1 text-[22px] sm:text-[26px] leading-tight font-bold text-[var(--eb-text)] tabular-nums truncate">
+                {formatCurrency(summary.todaySales, sym)}
+              </p>
+              <p className="mt-1 text-[12px] font-normal text-[var(--eb-text-muted)] tabular-nums truncate">
+                {summary.todayBillCount} {summary.todayBillCount === 1 ? 'bill' : 'bills'}
+                {typeof summary.todayCollections === 'number' && summary.todayCollections !== summary.todaySales
+                  ? ` · Collected ${formatCurrency(summary.todayCollections, sym)}`
+                  : ' generated today'}
+              </p>
+            </div>
+            <div className="w-10 h-10 rounded-[10px] bg-[var(--eb-accent-light)] text-[var(--eb-accent)] flex items-center justify-center shrink-0">
+              <TrendingUp className="w-5 h-5" />
+            </div>
+          </button>
+
+          {/* Card 2: Monthly Total Sales */}
+          <button
+            type="button"
+            onClick={() => onNavigate('sales')}
+            className="eb-card px-4 py-3.5 flex items-center justify-between gap-3 text-left hover:border-[var(--eb-accent)]/60 transition-colors group"
+          >
+            <div className="min-w-0">
+              <p className="text-[12px] font-medium text-[var(--eb-text-muted)] group-hover:text-[var(--eb-accent-text)] transition-colors">
+                Monthly Total Sales
+              </p>
+              <p className="mt-1 text-[22px] sm:text-[26px] leading-tight font-bold text-[var(--eb-text)] tabular-nums truncate">
+                {formatCurrency(summary.monthlySales, sym)}
+              </p>
+              <p className="mt-1 text-[12px] font-normal text-[var(--eb-text-muted)] tabular-nums truncate">
+                {summary.monthlyBillCount} active {summary.monthlyBillCount === 1 ? 'bill' : 'bills'}
+                {typeof summary.monthlyCollections === 'number' && summary.monthlyCollections !== summary.monthlySales
+                  ? ` · Collected ${formatCurrency(summary.monthlyCollections, sym)}`
+                  : ' this month'}
+              </p>
+            </div>
+            <div className="w-10 h-10 rounded-[10px] bg-[var(--eb-primary)] text-white flex items-center justify-center shrink-0 shadow-sm">
+              <CalendarRange className="w-5 h-5" />
+            </div>
+          </button>
+
+          {/* Card 3: Monthly Total Expenses */}
+          <button
+            type="button"
+            onClick={() => onNavigate('expenses')}
+            className="eb-card px-4 py-3.5 flex items-center justify-between gap-3 text-left hover:border-[var(--eb-accent)]/60 transition-colors group"
+          >
+            <div className="min-w-0">
+              <p className="text-[12px] font-medium text-[var(--eb-text-muted)] group-hover:text-[var(--eb-accent-text)] transition-colors">
+                Monthly Total Expenses
+              </p>
+              <p className="mt-1 text-[22px] sm:text-[26px] leading-tight font-bold text-[var(--eb-text)] tabular-nums truncate">
+                {formatCurrency(summary.monthlyExpenses, sym)}
+              </p>
+              <p className="mt-1 text-[12px] font-normal text-[var(--eb-text-muted)] tabular-nums truncate">
+                {typeof summary.pendingBalanceDue === 'number' && summary.pendingBalanceDue > 0
+                  ? `Receivables due: ${formatCurrency(summary.pendingBalanceDue, sym)}`
+                  : 'Open Accounts & Ledger'}
+              </p>
+            </div>
+            <div className="w-10 h-10 rounded-[10px] bg-[var(--eb-btn-secondary-bg)] text-[var(--eb-btn-secondary-text)] flex items-center justify-center shrink-0">
+              <Wallet className="w-5 h-5" />
+            </div>
           </button>
         </div>
-
-        {summary.pendingOrders.length === 0 ? (
-          <div className="eb-card p-8 text-center">
-            <ClipboardList className="w-8 h-8 mx-auto text-[#817A91]/50 mb-2" />
-            <p className="text-sm font-semibold text-[#302A40] dark:text-[#F3F1FA]">
-              No pending cake orders right now
-            </p>
-            <p className="text-xs font-medium text-[#817A91] mt-1">
-              Switch to Orders mode in Billing to book a custom cake order.
-            </p>
-          </div>
-        ) : (
-          <div className="flex gap-4 overflow-x-auto thin-scrollbar pb-2">
-            {summary.pendingOrders.map((order) => (
-              <div
-                key={order.id}
-                onClick={() => setSelectedOrder(order)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setSelectedOrder(order);
-                  }
-                }}
-                className="w-[260px] min-[390px]:w-[300px] sm:w-[320px] shrink-0 text-left eb-card p-4 hover:border-[#7656C9] hover:shadow-[0_6px_18px_rgba(118,86,201,0.1)] transition-all cursor-pointer flex flex-col justify-between gap-3"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-bold text-[#7656C9] dark:text-[#C5B3F7] tabular-nums">
-                      {order.orderNumber}
-                    </span>
-                    <span className="text-xs font-semibold text-[#5B3FA8] dark:text-[#D9CEFF]">
-                      {order.status}
-                    </span>
-                  </div>
-
-                  <h3 className="mt-1.5 font-display text-sm font-semibold text-[#302A40] dark:text-[#F3F1FA] truncate">
-                    {order.customerName}
-                  </h3>
-
-                  <div className="mt-1 flex items-center gap-1.5 text-xs font-medium text-[#817A91] tabular-nums">
-                    <Phone className="w-3.5 h-3.5 shrink-0" />
-                    <span>{order.customerPhone}</span>
-                  </div>
-
-                  <div className="mt-2.5 pt-2.5 border-t border-[#EAE7F0] dark:border-[#2E2842] space-y-1 text-xs font-medium text-[#817A91] tabular-nums">
-                    <div className="flex justify-between">
-                      <span>Order Date</span>
-                      <span className="text-[#302A40] dark:text-[#E9E2FF]">
-                        {formatDateValue(order.orderDate, dateFmt)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-[#302A40] dark:text-[#E9E2FF]">
-                      <span className="inline-flex items-center gap-1 text-[#817A91]">
-                        <Clock className="w-3.5 h-3.5 text-[#7656C9]" />
-                        {order.fulfillmentType || 'Pickup'}
-                      </span>
-                      <span className="font-semibold">
-                        {formatDateValue(order.deliveryDate, dateFmt)} · {order.deliveryTime}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-2.5 border-t border-[#EAE7F0] dark:border-[#2E2842] flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-[11px] font-medium text-[#817A91]">Pending Balance</p>
-                    <p className="font-display text-sm font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums">
-                      {formatMoneyExact(order.balanceAmount, sym)}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onPrintReceipt(orderToReceipt(order), true);
-                    }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] dark:bg-[#2A233D] dark:text-[#E9E2FF] text-xs font-semibold transition-colors whitespace-nowrap shrink-0"
-                  >
-                    <Printer className="w-3.5 h-3.5" />
-                    <span>Print</span>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </section>
 
-      {/* C. Recent Bills — Latest 6 Transactions */}
-      <section aria-label="Recent bills">
-        <div className="eb-card overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#EAE7F0] dark:border-[#2E2842] flex items-center justify-between gap-3">
+      {/* B + C: 12-Column Desktop Split — Pending Orders & Recent Bills */}
+      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3.5">
+        {/* B. Pending Orders Panel */}
+        <section
+          aria-label="Pending orders"
+          className="lg:col-span-5 eb-card flex flex-col min-h-[260px] lg:min-h-0 overflow-hidden"
+        >
+          <div className="px-4 py-3 border-b border-[var(--eb-border)] flex items-center justify-between gap-2 shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <ClipboardList className="w-4 h-4 text-[var(--eb-accent)] shrink-0" />
+              <h2 className="text-[16px] font-semibold text-[var(--eb-text)] truncate">
+                Pending Orders
+              </h2>
+              <span className="text-[12px] font-medium text-[var(--eb-text-muted)] tabular-nums shrink-0">
+                · {summary.pendingOrders.length} active
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => onNavigate('orders')}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[8px] bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/50 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800/60 text-[12px] font-medium transition-colors whitespace-nowrap shrink-0"
+            >
+              <span>Manage Orders</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {summary.pendingOrders.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+              <ClipboardList className="w-8 h-8 text-[var(--eb-text-muted)]/50 mb-2" />
+              <p className="text-[14px] font-semibold text-[var(--eb-text)]">
+                No pending cake orders right now
+              </p>
+              <p className="text-[12px] font-normal text-[var(--eb-text-muted)] mt-1">
+                Switch to Orders mode in Billing to book a custom cake order.
+              </p>
+            </div>
+          ) : (
+            <div className="flex-1 min-h-0 overflow-y-auto thin-scrollbar divide-y divide-[var(--eb-border)]">
+              {summary.pendingOrders.map((order) => {
+                const statusColor =
+                  order.status === 'Delivered'
+                    ? 'text-[#16A34A]'
+                    : order.status === 'Cancelled'
+                    ? 'text-[#DC2626]'
+                    : order.status === 'Ready for Pickup'
+                    ? 'text-[var(--eb-accent)]'
+                    : order.status === 'Confirmed' || order.status === 'Preparing'
+                    ? 'text-blue-600 dark:text-blue-400'
+                    : 'text-[#F59E0B]';
+
+                return (
+                  <div
+                    key={order.id}
+                    onClick={() => setSelectedOrder(order)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelectedOrder(order);
+                      }
+                    }}
+                    className="px-4 py-3 hover:bg-[var(--eb-table-row-hover)] transition-colors cursor-pointer flex items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-center gap-2 text-[12px] tabular-nums">
+                        <span className="font-bold text-[var(--eb-accent)]">
+                          {order.orderNumber}
+                        </span>
+                        <span className={`font-semibold ${statusColor}`}>
+                          {order.status}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 min-w-0">
+                        <h3 className="text-[13px] font-semibold text-[var(--eb-text)] truncate">
+                          {order.customerName}
+                        </h3>
+                        <span className="text-[12px] text-[var(--eb-text-muted)] tabular-nums inline-flex items-center gap-1 shrink-0">
+                          <Phone className="w-3 h-3" />
+                          {order.customerPhone}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-[11px] text-[var(--eb-text-muted)] tabular-nums">
+                        <span className="inline-flex items-center gap-1 text-[var(--eb-text)] font-medium">
+                          <Clock className="w-3 h-3 text-[var(--eb-accent)]" />
+                          {order.fulfillmentType || 'Pickup'}: {formatDateValue(order.deliveryDate, dateFmt)} · {order.deliveryTime}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
+                      <div>
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--eb-text-muted)]">
+                          Balance
+                        </p>
+                        <p className="text-[14px] font-bold text-[var(--eb-text)] tabular-nums">
+                          {formatMoneyExact(order.balanceAmount, sym)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onPrintReceipt(orderToReceipt(order), true);
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[7px] bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 text-[11px] font-medium transition-colors whitespace-nowrap shrink-0"
+                      >
+                        <Printer className="w-3 h-3" />
+                        <span>Print</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* C. Recent Bills Panel */}
+        <section
+          aria-label="Recent bills"
+          className="lg:col-span-7 eb-card flex flex-col min-h-[260px] lg:min-h-0 overflow-hidden"
+        >
+          <div className="px-4 py-3 border-b border-[var(--eb-border)] flex items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-2">
-              <Receipt className="w-4 h-4 text-[#7656C9]" />
-              <h2 className="font-display text-[17px] sm:text-[19px] font-semibold text-[#302A40] dark:text-[#F3F1FA]">
+              <Receipt className="w-4 h-4 text-[var(--eb-accent)]" />
+              <h2 className="text-[16px] font-semibold text-[var(--eb-text)]">
                 Recent Bills
               </h2>
             </div>
             <button
               type="button"
               onClick={() => onNavigate('sales')}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] dark:bg-[#2A233D] dark:text-[#E9E2FF] text-[14px] font-semibold transition-colors whitespace-nowrap shrink-0"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-[8px] bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/50 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800/60 text-[12px] font-medium transition-colors whitespace-nowrap shrink-0"
             >
               <span>View All</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -307,37 +342,37 @@ export function DashboardPage({ onNavigate, onPrintReceipt }: DashboardPageProps
           </div>
 
           {summary.recentBills.length === 0 ? (
-            <div className="p-8 text-center text-[14px] font-medium text-[#817A91]">
+            <div className="flex-1 flex items-center justify-center p-8 text-center text-[14px] font-normal text-[var(--eb-text-muted)]">
               No bills recorded yet.
             </div>
           ) : (
             <>
               {/* Mobile Recent Bills Card List */}
-              <div className="md:hidden divide-y divide-[#EAE7F0] dark:divide-[#2E2842]">
+              <div className="md:hidden divide-y divide-[var(--eb-border)]">
                 {summary.recentBills.map((bill: Bill) => (
-                  <div key={bill.id} className="p-4 flex items-center justify-between gap-3">
+                  <div key={bill.id} className="p-3.5 flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1 space-y-0.5">
-                      <div className="flex items-center gap-2 text-[13px] tabular-nums">
-                        <span className="font-bold text-[#7656C9] dark:text-[#C5B3F7]">
+                      <div className="flex items-center gap-2 text-[12px] tabular-nums">
+                        <span className="font-semibold text-[var(--eb-accent)]">
                           {bill.billNumber}
                         </span>
-                        <span className="text-[#817A91]">· {bill.paymentMode}</span>
+                        <span className="text-[var(--eb-text-muted)]">· {bill.paymentMode}</span>
                       </div>
-                      <p className="text-[14px] font-semibold text-[#302A40] dark:text-[#F3F1FA] truncate">
+                      <p className="text-[14px] font-semibold text-[var(--eb-text)] truncate">
                         {bill.customerName || 'Walk-in Customer'}
                       </p>
-                      <p className="text-[13px] font-normal text-[#817A91]">
+                      <p className="text-[12px] font-normal text-[var(--eb-text-muted)]">
                         Cashier: {bill.username}
                       </p>
                     </div>
                     <div className="text-right shrink-0 space-y-1.5">
-                      <p className="font-display text-[14px] font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums">
+                      <p className="text-[14px] font-bold text-[var(--eb-text)] tabular-nums">
                         {formatMoneyExact(bill.grandTotal, sym)}
                       </p>
                       <button
                         type="button"
                         onClick={() => onPrintReceipt(billToReceipt(bill), true)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[8px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] dark:bg-[#2A233D] dark:text-[#E9E2FF] text-[13px] font-semibold transition-colors"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[8px] bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 text-[12px] font-medium transition-colors whitespace-nowrap shrink-0"
                       >
                         <Printer className="w-3 h-3" />
                         <span>Print</span>
@@ -348,46 +383,46 @@ export function DashboardPage({ onNavigate, onPrintReceipt }: DashboardPageProps
               </div>
 
               {/* Desktop Recent Bills Table */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-[14px] text-left">
-                  <thead className="bg-[#F7F7FB] dark:bg-[#151220] text-[13px] font-semibold text-[#817A91] border-b border-[#EAE7F0] dark:border-[#2E2842]">
+              <div className="hidden md:block flex-1 min-h-0 overflow-y-auto overflow-x-hidden thin-scrollbar">
+                <table className="w-full table-fixed text-[13px] text-left border-collapse">
+                  <thead className="sticky top-0 z-10 bg-[var(--eb-table-header-bg)] text-[12px] font-semibold text-[var(--eb-text-muted)] border-b border-[var(--eb-border)]">
                     <tr>
-                      <th className="px-5 py-3">Bill Number</th>
-                      <th className="px-5 py-3">Customer Name</th>
-                      <th className="px-5 py-3 text-right">Amount</th>
-                      <th className="px-5 py-3">Payment Mode</th>
-                      <th className="px-5 py-3">User Name</th>
-                      <th className="px-5 py-3 text-right">Action</th>
+                      <th className="px-3.5 py-2.5 w-[22%]">Bill Number</th>
+                      <th className="px-3 py-2.5 w-[26%]">Customer Name</th>
+                      <th className="px-3 py-2.5 w-[16%] text-right">Amount</th>
+                      <th className="px-3 py-2.5 w-[12%]">Mode</th>
+                      <th className="px-3 py-2.5 w-[12%]">Cashier</th>
+                      <th className="px-3.5 py-2.5 w-[12%] text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#EAE7F0] dark:divide-[#2E2842]">
+                  <tbody className="divide-y divide-[var(--eb-border)]">
                     {summary.recentBills.map((bill: Bill) => (
                       <tr
                         key={bill.id}
-                        className="hover:bg-[#F7F7FB]/80 dark:hover:bg-[#231E33] transition-colors"
+                        className="hover:bg-[var(--eb-table-row-hover)] transition-colors"
                       >
-                        <td className="px-5 py-3 text-xs font-semibold text-[#7656C9] dark:text-[#C5B3F7] tabular-nums whitespace-nowrap">
+                        <td className="px-3.5 py-2.5 text-[13px] font-semibold text-[var(--eb-accent)] tabular-nums truncate">
                           {bill.billNumber}
                         </td>
-                        <td className="px-5 py-3 text-[#302A40] dark:text-[#F3F1FA] font-medium">
+                        <td className="px-3 py-2.5 text-[var(--eb-text)] font-medium truncate">
                           {bill.customerName || 'Walk-in Customer'}
                         </td>
-                        <td className="px-5 py-3 text-right font-display font-bold text-[#302A40] dark:text-[#F3F1FA] tabular-nums whitespace-nowrap">
+                        <td className="px-3 py-2.5 text-right font-bold text-[var(--eb-text)] tabular-nums whitespace-nowrap">
                           {formatMoneyExact(bill.grandTotal, sym)}
                         </td>
-                        <td className="px-5 py-3 text-xs font-medium text-[#817A91] dark:text-[#D9CEFF] whitespace-nowrap">
+                        <td className="px-3 py-2.5 text-[12px] font-normal text-[var(--eb-text-muted)] truncate">
                           {bill.paymentMode}
                         </td>
-                        <td className="px-5 py-3 text-xs font-medium text-[#817A91] whitespace-nowrap">
+                        <td className="px-3 py-2.5 text-[12px] font-normal text-[var(--eb-text-muted)] truncate">
                           {bill.username}
                         </td>
-                        <td className="px-5 py-3 text-right whitespace-nowrap">
+                        <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
                           <button
                             type="button"
                             onClick={() => onPrintReceipt(billToReceipt(bill), true)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] dark:bg-[#2A233D] dark:text-[#E9E2FF] text-xs font-semibold transition-colors"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[7px] bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 text-[12px] font-medium transition-colors whitespace-nowrap shrink-0"
                           >
-                            <Printer className="w-3.5 h-3.5" />
+                            <Printer className="w-3 h-3" />
                             <span>Print</span>
                           </button>
                         </td>
@@ -398,31 +433,31 @@ export function DashboardPage({ onNavigate, onPrintReceipt }: DashboardPageProps
               </div>
             </>
           )}
-        </div>
-      </section>
+        </section>
+      </div>
 
       {/* Order Detail Modal on Clicking Pending Order Card */}
       {selectedOrder && (
         <div
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-[#302A40]/50 backdrop-blur-[2px] p-4"
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-[var(--eb-primary)]/60 backdrop-blur-[2px] p-4"
           role="dialog"
           aria-modal="true"
           aria-label="Order details"
         >
-          <div className="w-full max-w-lg rounded-[14px] bg-white dark:bg-[#1B1726] border border-[#EAE7F0] dark:border-[#2E2842] shadow-[0_16px_44px_rgba(48,42,64,0.18)] overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#EAE7F0] dark:border-[#2E2842]">
+          <div className="w-full max-w-lg rounded-[16px] bg-[var(--eb-surface)] border border-[var(--eb-border)] shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--eb-border)]">
               <div>
-                <p className="text-xs font-semibold text-[#7656C9] tabular-nums">
+                <p className="text-[12px] font-semibold text-[var(--eb-accent)] tabular-nums">
                   {selectedOrder.orderNumber} · {selectedOrder.status}
                 </p>
-                <h3 className="font-display text-lg font-bold text-[#302A40] dark:text-[#F3F1FA]">
+                <h3 className="text-[18px] font-semibold text-[var(--eb-text)]">
                   {selectedOrder.customerName}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedOrder(null)}
-                className="p-1.5 rounded-[10px] text-[#817A91] hover:text-[#302A40]"
+                className="p-1.5 rounded-[8px] text-[var(--eb-text-muted)] hover:text-[var(--eb-text)]"
                 aria-label="Close order details"
               >
                 <X className="w-5 h-5" />
@@ -430,25 +465,25 @@ export function DashboardPage({ onNavigate, onPrintReceipt }: DashboardPageProps
             </div>
 
             <div className="p-4 sm:p-5 space-y-4 max-h-[70vh] overflow-y-auto">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-[#F7F7FB] dark:bg-[#13101C] p-3.5 rounded-[12px] border border-[#EAE7F0] dark:border-[#2E2842] tabular-nums">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[12px] bg-[var(--eb-bg)] p-3.5 rounded-[12px] border border-[var(--eb-border)] tabular-nums">
                 <div>
-                  <span className="font-semibold text-[#817A91]">Phone</span>
-                  <p className="font-semibold text-[#302A40] dark:text-[#F3F1FA] mt-0.5">
+                  <span className="font-medium text-[var(--eb-text-muted)]">Phone</span>
+                  <p className="font-semibold text-[var(--eb-text)] mt-0.5">
                     {selectedOrder.customerPhone}
                   </p>
                 </div>
                 <div>
-                  <span className="font-semibold text-[#817A91]">
+                  <span className="font-medium text-[var(--eb-text-muted)]">
                     Expected {selectedOrder.fulfillmentType || 'Pickup'}
                   </span>
-                  <p className="font-semibold text-[#302A40] dark:text-[#F3F1FA] mt-0.5">
+                  <p className="font-semibold text-[var(--eb-text)] mt-0.5">
                     {formatDateValue(selectedOrder.deliveryDate, dateFmt)} · {selectedOrder.deliveryTime}
                   </p>
                 </div>
                 {selectedOrder.customerAddress && (
                   <div className="sm:col-span-2">
-                    <span className="font-semibold text-[#817A91]">Address</span>
-                    <p className="font-medium text-[#302A40] dark:text-[#F3F1FA] mt-0.5">
+                    <span className="font-medium text-[var(--eb-text-muted)]">Address</span>
+                    <p className="font-normal text-[var(--eb-text)] mt-0.5">
                       {selectedOrder.customerAddress}
                     </p>
                   </div>
@@ -456,21 +491,21 @@ export function DashboardPage({ onNavigate, onPrintReceipt }: DashboardPageProps
               </div>
 
               <div>
-                <h4 className="text-xs font-semibold text-[#817A91] mb-2">
+                <h4 className="text-[12px] font-semibold text-[var(--eb-text-muted)] mb-2">
                   Ordered Items
                 </h4>
-                <div className="divide-y divide-[#EAE7F0] dark:divide-[#2E2842] border border-[#EAE7F0] dark:border-[#2E2842] rounded-[12px] overflow-hidden text-xs tabular-nums">
+                <div className="divide-y divide-[var(--eb-border)] border border-[var(--eb-border)] rounded-[12px] overflow-hidden text-[13px] tabular-nums">
                   {selectedOrder.items.map((item, i) => (
-                    <div key={i} className="flex items-center justify-between px-3.5 py-2.5">
+                    <div key={i} className="flex items-center justify-between px-3.5 py-2">
                       <div>
-                        <p className="font-semibold text-[#302A40] dark:text-[#F3F1FA]">
+                        <p className="font-semibold text-[var(--eb-text)]">
                           {item.productName}
                         </p>
-                        <p className="font-medium text-[#817A91]">
+                        <p className="font-normal text-[12px] text-[var(--eb-text-muted)]">
                           {item.quantity} {item.unit} × {formatMoneyExact(item.unitPrice, sym)}
                         </p>
                       </div>
-                      <span className="font-display font-bold text-[#302A40] dark:text-[#F3F1FA]">
+                      <span className="font-bold text-[var(--eb-text)]">
                         {formatMoneyExact(item.subtotal, sym)}
                       </span>
                     </div>
@@ -479,36 +514,36 @@ export function DashboardPage({ onNavigate, onPrintReceipt }: DashboardPageProps
               </div>
 
               {selectedOrder.notes && (
-                <div className="text-xs font-medium bg-[#F7F7FB] dark:bg-[#13101C] border border-[#EAE7F0] dark:border-[#2E2842] rounded-[12px] p-3 text-[#302A40] dark:text-[#E9E2FF]">
-                  <span className="font-semibold text-[#7656C9]">Notes: </span>
+                <div className="text-[12px] font-normal bg-[var(--eb-bg)] border border-[var(--eb-border)] rounded-[12px] p-3 text-[var(--eb-text)]">
+                  <span className="font-semibold text-[var(--eb-accent)]">Notes: </span>
                   {selectedOrder.notes}
                 </div>
               )}
 
-              <div className="space-y-1.5 text-sm border-t border-[#EAE7F0] dark:border-[#2E2842] pt-3 tabular-nums">
-                <div className="flex justify-between font-medium text-[#817A91]">
+              <div className="space-y-1.5 text-[14px] border-t border-[var(--eb-border)] pt-3 tabular-nums">
+                <div className="flex justify-between font-normal text-[var(--eb-text-muted)]">
                   <span>Order Total</span>
                   <span>{formatMoneyExact(selectedOrder.grandTotal, sym)}</span>
                 </div>
-                <div className="flex justify-between font-medium text-emerald-700 dark:text-emerald-400">
+                <div className="flex justify-between font-normal text-[#16A34A]">
                   <span>Advance Received</span>
                   <span>{formatMoneyExact(selectedOrder.advanceAmount, sym)}</span>
                 </div>
-                <div className="flex justify-between font-display font-bold text-[#302A40] dark:text-[#F3F1FA]">
+                <div className="flex justify-between font-bold text-[var(--eb-text)]">
                   <span>Pending Balance</span>
                   <span>{formatMoneyExact(selectedOrder.balanceAmount, sym)}</span>
                 </div>
               </div>
             </div>
 
-            <div className="px-4 sm:px-5 py-3.5 border-t border-[#EAE7F0] dark:border-[#2E2842] bg-[#F7F7FB] dark:bg-[#151220] flex flex-wrap items-center justify-between gap-2">
+            <div className="px-4 sm:px-5 py-3.5 border-t border-[var(--eb-border)] bg-[var(--eb-bg)] flex flex-wrap items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={() => {
                   setSelectedOrder(null);
                   onNavigate('orders');
                 }}
-                className="px-4 py-2 rounded-[10px] bg-[#E9E2FF] hover:bg-[#DDD3FF] text-[#4B3194] text-[14px] font-semibold transition-colors"
+                className="px-4 py-2 rounded-[10px] bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/50 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800/60 text-[14px] font-medium transition-colors whitespace-nowrap shrink-0"
               >
                 Open in Orders
               </button>
@@ -519,7 +554,7 @@ export function DashboardPage({ onNavigate, onPrintReceipt }: DashboardPageProps
                   setSelectedOrder(null);
                   onPrintReceipt(orderToReceipt(ord), true);
                 }}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] bg-[#7656C9] hover:bg-[#6947BB] text-white text-[14px] font-semibold transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] bg-indigo-600 hover:bg-indigo-700 text-white text-[14px] font-medium transition-colors shadow-sm whitespace-nowrap shrink-0"
               >
                 <Printer className="w-4 h-4" />
                 <span>Print Receipt</span>

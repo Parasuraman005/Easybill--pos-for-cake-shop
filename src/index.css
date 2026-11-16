@@ -1,18 +1,282 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
+@theme {
+  --color-primary: var(--eb-primary);
+  --color-primary-hover: var(--eb-primary-hover);
+  --color-secondary: var(--eb-secondary);
+  --color-accent: var(--eb-accent);
+  --color-accent-hover: var(--eb-accent-hover);
+  --color-accent-light: var(--eb-accent-light);
+  --color-canvas: var(--eb-bg);
+  --color-surface: var(--eb-surface);
+  --color-border-subtle: var(--eb-border);
+  --color-text-main: var(--eb-text);
+  --color-text-muted: var(--eb-text-muted);
+}
+
 @layer base {
-  :root {
-    --font-display: 'Outfit', system-ui, sans-serif;
+  /* =========================================================================
+     01. NAVY & TEAL (Default Corporate · Professional · Modern)
+     ========================================================================= */
+  :root,
+  [data-theme="navy-teal"] {
+    --font-display: 'Inter', system-ui, sans-serif;
     --font-sans: 'Inter', system-ui, sans-serif;
-    --eb-bg: #F7F7FB;
+    --eb-primary: #142D4E;
+    --eb-primary-hover: #0E223D;
+    --eb-secondary: #1E3E68;
+    --eb-accent: #0F766E;
+    --eb-accent-hover: #0D645E;
+    --eb-accent-light: #F0FDFA;
+    --eb-accent-border: #99F6E4;
+    --eb-accent-text: #0F766E;
+    --eb-bg: #F8FAFC;
     --eb-surface: #FFFFFF;
-    --eb-primary: #7656C9;
-    --eb-primary-hover: #6947BB;
-    --eb-secondary: #E9E2FF;
-    --eb-text: #302A40;
-    --eb-text-muted: #817A91;
-    --eb-border: #EAE7F0;
+    --eb-border: #E2E8F0;
+    --eb-text: #142D4E;
+    --eb-text-muted: #64748B;
+    --eb-sidebar-bg: #142D4E;
+    --eb-sidebar-text: #FFFFFF;
+    --eb-sidebar-border: #1E3E68;
+    --eb-sidebar-active: #0F766E;
+    --eb-header-bg: rgba(255, 255, 255, 0.95);
+    --eb-header-border: #E2E8F0;
+    --eb-btn-secondary-bg: #F1F5F9;
+    --eb-btn-secondary-text: #142D4E;
+    --eb-btn-secondary-border: #E2E8F0;
+    --eb-card-bg: #FFFFFF;
+    --eb-card-border: #E2E8F0;
+    --eb-input-bg: #FFFFFF;
+    --eb-input-border: #E2E8F0;
+    --eb-surface-subtle: var(--eb-bg);
+    --eb-btn-secondary-hover: var(--eb-border);
+    --eb-table-header-bg: var(--eb-bg);
+    --eb-table-row-hover: var(--eb-bg);
+    --eb-select-arrow: %230F766E;
+  }
+
+  /* =========================================================================
+     02. CHARCOAL & ORANGE (Retail · Bold · Premium)
+     ========================================================================= */
+  [data-theme="charcoal-orange"] {
+    --eb-primary: #242424;
+    --eb-primary-hover: #171717;
+    --eb-secondary: #383838;
+    --eb-accent: #F97316;
+    --eb-accent-hover: #EA580C;
+    --eb-accent-light: #FFF7ED;
+    --eb-accent-border: #FED7AA;
+    --eb-accent-text: #C2410C;
+    --eb-bg: #F5F5F4;
+    --eb-surface: #FFFFFF;
+    --eb-border: #E7E5E4;
+    --eb-text: #242424;
+    --eb-text-muted: #78716C;
+    --eb-sidebar-bg: #242424;
+    --eb-sidebar-text: #FFFFFF;
+    --eb-sidebar-border: #383838;
+    --eb-sidebar-active: #F97316;
+    --eb-header-bg: rgba(255, 255, 255, 0.95);
+    --eb-header-border: #E7E5E4;
+    --eb-btn-secondary-bg: #F5F5F4;
+    --eb-btn-secondary-text: #242424;
+    --eb-btn-secondary-border: #E7E5E4;
+    --eb-card-bg: #FFFFFF;
+    --eb-card-border: #E7E5E4;
+    --eb-input-bg: #FFFFFF;
+    --eb-input-border: #E7E5E4;
+    --eb-select-arrow: %23F97316;
+  }
+
+  /* =========================================================================
+     03. EMERALD & WHITE (Finance · Clean · Trustworthy)
+     ========================================================================= */
+  [data-theme="emerald-white"] {
+    --eb-primary: #064E3B;
+    --eb-primary-hover: #043A2C;
+    --eb-secondary: #065F46;
+    --eb-accent: #10B981;
+    --eb-accent-hover: #059669;
+    --eb-accent-light: #ECFDF5;
+    --eb-accent-border: #A7F3D0;
+    --eb-accent-text: #047857;
+    --eb-bg: #ECFDF5;
+    --eb-surface: #FFFFFF;
+    --eb-border: #D1FAE5;
+    --eb-text: #064E3B;
+    --eb-text-muted: #4B5563;
+    --eb-sidebar-bg: #064E3B;
+    --eb-sidebar-text: #FFFFFF;
+    --eb-sidebar-border: #065F46;
+    --eb-sidebar-active: #10B981;
+    --eb-header-bg: rgba(255, 255, 255, 0.95);
+    --eb-header-border: #D1FAE5;
+    --eb-btn-secondary-bg: #F0FDF4;
+    --eb-btn-secondary-text: #064E3B;
+    --eb-btn-secondary-border: #D1FAE5;
+    --eb-card-bg: #FFFFFF;
+    --eb-card-border: #D1FAE5;
+    --eb-input-bg: #FFFFFF;
+    --eb-input-border: #D1FAE5;
+    --eb-select-arrow: %2310B981;
+  }
+
+  /* =========================================================================
+     04. MIDNIGHT & GOLD (Luxury · Elegant · Premium)
+     ========================================================================= */
+  [data-theme="midnight-gold"] {
+    --eb-primary: #111827;
+    --eb-primary-hover: #0B0F19;
+    --eb-secondary: #1F2937;
+    --eb-accent: #D4A84F;
+    --eb-accent-hover: #B88E3A;
+    --eb-accent-light: #FAF5E8;
+    --eb-accent-border: #FDE68A;
+    --eb-accent-text: #92400E;
+    --eb-bg: #F3F4F6;
+    --eb-surface: #FFFFFF;
+    --eb-border: #E5E7EB;
+    --eb-text: #111827;
+    --eb-text-muted: #6B7280;
+    --eb-sidebar-bg: #111827;
+    --eb-sidebar-text: #FFFFFF;
+    --eb-sidebar-border: #1F2937;
+    --eb-sidebar-active: #D4A84F;
+    --eb-header-bg: rgba(255, 255, 255, 0.95);
+    --eb-header-border: #E5E7EB;
+    --eb-btn-secondary-bg: #F3F4F6;
+    --eb-btn-secondary-text: #111827;
+    --eb-btn-secondary-border: #E5E7EB;
+    --eb-card-bg: #FFFFFF;
+    --eb-card-border: #E5E7EB;
+    --eb-input-bg: #FFFFFF;
+    --eb-input-border: #E5E7EB;
+    --eb-select-arrow: %23D4A84F;
+  }
+
+  /* =========================================================================
+     DARK MODE VARIANTS
+     ========================================================================= */
+  .dark,
+  .dark[data-theme="navy-teal"] {
+    --eb-primary: #0F1D27;
+    --eb-primary-hover: #0A151D;
+    --eb-secondary: #1A3346;
+    --eb-accent: #2DD4BF;
+    --eb-accent-hover: #14B8A6;
+    --eb-accent-light: rgba(45, 212, 191, 0.15);
+    --eb-accent-border: rgba(45, 212, 191, 0.3);
+    --eb-accent-text: #2DD4BF;
+    --eb-bg: #0A131A;
+    --eb-surface: #12222E;
+    --eb-border: #1F384C;
+    --eb-text: #F8FAFC;
+    --eb-text-muted: #94A3B8;
+    --eb-sidebar-bg: #0F1D27;
+    --eb-sidebar-text: #FFFFFF;
+    --eb-sidebar-border: #1A3346;
+    --eb-sidebar-active: #2DD4BF;
+    --eb-header-bg: rgba(18, 34, 46, 0.95);
+    --eb-header-border: #1F384C;
+    --eb-btn-secondary-bg: #1A3346;
+    --eb-btn-secondary-text: #F8FAFC;
+    --eb-btn-secondary-border: #1F384C;
+    --eb-card-bg: #12222E;
+    --eb-card-border: #1F384C;
+    --eb-input-bg: #0A131A;
+    --eb-input-border: #1F384C;
+    --eb-select-arrow: %232DD4BF;
+  }
+
+  .dark[data-theme="charcoal-orange"] {
+    --eb-primary: #1A1A1A;
+    --eb-primary-hover: #121212;
+    --eb-secondary: #2E2E2E;
+    --eb-accent: #FB923C;
+    --eb-accent-hover: #F97316;
+    --eb-accent-light: rgba(251, 146, 60, 0.15);
+    --eb-accent-border: rgba(251, 146, 60, 0.3);
+    --eb-accent-text: #FB923C;
+    --eb-bg: #121212;
+    --eb-surface: #1E1E1E;
+    --eb-border: #333333;
+    --eb-text: #F5F5F4;
+    --eb-text-muted: #A8A29E;
+    --eb-sidebar-bg: #171717;
+    --eb-sidebar-text: #FFFFFF;
+    --eb-sidebar-border: #2B2B2B;
+    --eb-sidebar-active: #FB923C;
+    --eb-header-bg: rgba(30, 30, 30, 0.95);
+    --eb-header-border: #333333;
+    --eb-btn-secondary-bg: #2E2E2E;
+    --eb-btn-secondary-text: #F5F5F4;
+    --eb-btn-secondary-border: #3A3A3A;
+    --eb-card-bg: #1E1E1E;
+    --eb-card-border: #333333;
+    --eb-input-bg: #141414;
+    --eb-input-border: #333333;
+    --eb-select-arrow: %23FB923C;
+  }
+
+  .dark[data-theme="emerald-white"] {
+    --eb-primary: #032B21;
+    --eb-primary-hover: #021F17;
+    --eb-secondary: #065F46;
+    --eb-accent: #34D399;
+    --eb-accent-hover: #10B981;
+    --eb-accent-light: rgba(52, 211, 153, 0.15);
+    --eb-accent-border: rgba(52, 211, 153, 0.3);
+    --eb-accent-text: #34D399;
+    --eb-bg: #021812;
+    --eb-surface: #05382B;
+    --eb-border: #0B5943;
+    --eb-text: #ECFDF5;
+    --eb-text-muted: #9CA3AF;
+    --eb-sidebar-bg: #032B21;
+    --eb-sidebar-text: #FFFFFF;
+    --eb-sidebar-border: #065F46;
+    --eb-sidebar-active: #34D399;
+    --eb-header-bg: rgba(5, 56, 43, 0.95);
+    --eb-header-border: #0B5943;
+    --eb-btn-secondary-bg: #065F46;
+    --eb-btn-secondary-text: #ECFDF5;
+    --eb-btn-secondary-border: #0B5943;
+    --eb-card-bg: #05382B;
+    --eb-card-border: #0B5943;
+    --eb-input-bg: #021D16;
+    --eb-input-border: #0B5943;
+    --eb-select-arrow: %2334D399;
+  }
+
+  .dark[data-theme="midnight-gold"] {
+    --eb-primary: #0B0F17;
+    --eb-primary-hover: #070A0F;
+    --eb-secondary: #1A2332;
+    --eb-accent: #E2C17C;
+    --eb-accent-hover: #D4A84F;
+    --eb-accent-light: rgba(226, 193, 124, 0.15);
+    --eb-accent-border: rgba(226, 193, 124, 0.3);
+    --eb-accent-text: #E2C17C;
+    --eb-bg: #06090E;
+    --eb-surface: #111827;
+    --eb-border: #243044;
+    --eb-text: #F3F4F6;
+    --eb-text-muted: #9CA3AF;
+    --eb-sidebar-bg: #0B0F17;
+    --eb-sidebar-text: #FFFFFF;
+    --eb-sidebar-border: #1A2332;
+    --eb-sidebar-active: #E2C17C;
+    --eb-header-bg: rgba(17, 24, 39, 0.95);
+    --eb-header-border: #243044;
+    --eb-btn-secondary-bg: #1F2937;
+    --eb-btn-secondary-text: #F3F4F6;
+    --eb-btn-secondary-border: #2A374A;
+    --eb-card-bg: #111827;
+    --eb-card-border: #243044;
+    --eb-input-bg: #0A0E16;
+    --eb-input-border: #243044;
+    --eb-select-arrow: %23E2C17C;
   }
 
   body {
@@ -22,6 +286,7 @@
     font-weight: 400;
     background-color: var(--eb-bg);
     color: var(--eb-text);
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
   h1, h2, h3, h4, button, nav, .font-display {
@@ -32,8 +297,73 @@
     font-family: var(--font-sans);
   }
 
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--eb-accent);
+  }
+
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    accent-color: var(--eb-accent);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%230F766E' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.65rem center;
+    background-size: 0.95rem 0.95rem;
+    padding-right: 2.25rem;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  }
+
+  .dark select,
+  .dark[data-theme="navy-teal"] select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%232DD4BF' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+
+  [data-theme="charcoal-orange"] select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23F97316' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+
+  .dark[data-theme="charcoal-orange"] select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23FB923C' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+
+  [data-theme="emerald-white"] select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2310B981' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+
+  .dark[data-theme="emerald-white"] select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2334D399' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+
+  [data-theme="midnight-gold"] select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23D4A84F' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+
+  .dark[data-theme="midnight-gold"] select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23E2C17C' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+
+  select:focus {
+    border-color: var(--eb-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--eb-accent) 18%, transparent);
+  }
+
+  select option,
+  select optgroup {
+    background-color: var(--eb-surface);
+    color: var(--eb-text);
+    font-family: var(--font-sans);
+  }
+
+  select option:checked {
+    background-color: var(--eb-accent-light);
+    color: var(--eb-accent);
+    font-weight: 600;
+  }
+
   :where(button, a, input, select, textarea, [tabindex]):focus-visible {
-    outline: 2px solid var(--eb-primary);
+    outline: 2px solid var(--eb-accent);
     outline-offset: 2px;
   }
 }
@@ -52,16 +382,11 @@
 }
 
 .eb-card {
-  background-color: #FFFFFF;
-  border: 1px solid #EAE7F0;
+  background-color: var(--eb-surface);
+  border: 1px solid var(--eb-border);
   border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(48, 42, 64, 0.04);
-}
-
-.dark .eb-card {
-  background-color: #1B1726;
-  border-color: #2E2842;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 /* Subtle custom scrollbars for POS grids and horizontal pending order strips */
@@ -75,12 +400,12 @@
 }
 
 .thin-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(118, 86, 201, 0.25);
+  background: color-mix(in srgb, var(--eb-accent) 30%, transparent);
   border-radius: 9999px;
 }
 
 .thin-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(118, 86, 201, 0.45);
+  background: color-mix(in srgb, var(--eb-accent) 55%, transparent);
 }
 
 /* Thermal & A4 Receipt Printing Rules */

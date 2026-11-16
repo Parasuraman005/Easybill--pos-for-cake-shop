@@ -103,6 +103,14 @@ export function initDatabase(): void {
       value TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS categories (
+      id TEXT PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL,
+      isCustom INTEGER NOT NULL DEFAULT 1,
+      sortOrder INTEGER NOT NULL DEFAULT 100,
+      createdAt TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS products (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -227,6 +235,7 @@ function getDefaultSettings() {
       appName: 'Easy Bill',
       appLogo: '',
       theme: 'light',
+      colorTheme: 'navy-teal',
       dateFormat: 'DD-MM-YYYY',
       currencySymbol: '₹',
     },
@@ -326,6 +335,41 @@ function seedInitialData(): void {
     const insertSetting = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)');
     for (const [k, v] of Object.entries(defaults)) {
       insertSetting.run(k, JSON.stringify(v));
+    }
+  }
+
+  const defaultCategories = [
+    ['cat-cakes', 'Cakes', 1],
+    ['cat-pastries', 'Pastries', 2],
+    ['cat-cupcakes', 'Cupcakes', 3],
+    ['cat-chocolates', 'Chocolates', 4],
+    ['cat-cookies', 'Cookies', 5],
+    ['cat-desserts', 'Desserts', 6],
+    ['cat-snacks', 'Snacks', 7],
+    ['cat-beverages', 'Beverages', 8],
+    ['cat-others', 'Others', 9],
+  ] as const;
+
+  const insertDefaultCategory = db.prepare(`
+    INSERT OR IGNORE INTO categories (id, name, isCustom, sortOrder, createdAt)
+    VALUES (?, ?, 0, ?, ?)
+  `);
+  for (const [id, name, sortOrder] of defaultCategories) {
+    insertDefaultCategory.run(id, name, sortOrder, nowIso);
+  }
+
+  const distinctProductCats = db
+    .prepare("SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND TRIM(category) != ''")
+    .all() as { category: string }[];
+  const checkCatExists = db.prepare('SELECT id FROM categories WHERE LOWER(name) = LOWER(?)');
+  const insertCustomCat = db.prepare(`
+    INSERT INTO categories (id, name, isCustom, sortOrder, createdAt)
+    VALUES (?, ?, 1, 100, ?)
+  `);
+  for (const row of distinctProductCats) {
+    const clean = row.category.trim();
+    if (clean && !checkCatExists.get(clean)) {
+      insertCustomCat.run(`cat-${crypto.randomUUID().slice(0, 8)}`, clean, nowIso);
     }
   }
 
